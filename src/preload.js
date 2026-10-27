@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld('api', {
   saveFile: (args) => ipcRenderer.invoke('save-file', args),
   exportPdf: (args) => ipcRenderer.invoke('export-pdf', args),
   exportPng: (args) => ipcRenderer.invoke('export-png', args),
+  printRaster: (args) => ipcRenderer.invoke('print-raster', args),
   pickImage: () => ipcRenderer.invoke('pick-image'),
   getRecent: () => ipcRenderer.invoke('get-recent'),
   clearRecent: () => ipcRenderer.invoke('clear-recent'),

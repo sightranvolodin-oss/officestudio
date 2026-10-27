@@ -261,6 +261,7 @@
     const t = el('div', { class: 'toast' + (type ? ' ' + type : ''), text: msg });
     document.getElementById('toasts').append(t);
     setTimeout(() => t.remove(), ms);
+    return t;
   }
 
   const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');

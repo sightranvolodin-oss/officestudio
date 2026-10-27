@@ -294,24 +294,31 @@ void main() { o = vec4(vCol * vA, vA); }`;
       this.canvas.height = Math.max(1, Math.round(h * dpr));
       this.dpr = dpr;
     }
-    draw(view, origin, layers, fg, sel, mode = 0) {
+    draw(view, origin, layers, fg, sel, mode = 0, opts = {}) {
       const ctx = this.ctx, d = this.dpr || 1;
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
       const s = view.s;
       // origin-relative world -> device pixels
       ctx.setTransform(d * s, 0, 0, -d * s, d * (view.W / 2 - (view.cx - origin[0]) * s), d * (view.H / 2 + (view.cy - origin[1]) * s));
-      const lw = 1 / s;
+      const lw = (opts.linePx || 1) / s;
       const alphaOf = (v, L) => {
         const a = (v >>> 24) & 255;
         if (a) return a / 255;
         if ((v >>> 8) & 255) return (v & 255) / 255;
         return L && L.alpha != null ? L.alpha / 255 : 1;
       };
-      const hexOf = (v, L) => {
+      const hexOf = (v, L, fill) => {
         let r, g, b;
         if ((v >>> 24) & 255) { r = v & 255; g = (v >>> 8) & 255; b = (v >>> 16) & 255; }
         else { const c = L ? L.color : [1, 1, 1]; r = c[0] * 255; g = c[1] * 255; b = c[2] * 255; }
+        // 3 = black & white print: lines black, fills as light greys
+        if (mode === 3) {
+          if (!fill) return `rgb(${fg[0] * 255},${fg[1] * 255},${fg[2] * 255})`;
+          const l = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+          const gr = Math.round(255 * (0.62 + 0.33 * l));
+          return `rgb(${gr},${gr},${gr})`;
+        }
         if ((r > 250 && g > 250 && b > 250) || (r < 5 && g < 5 && b < 5) || mode === 2) return `rgb(${fg[0] * 255},${fg[1] * 255},${fg[2] * 255})`;
         if (mode === 1) { const l = (0.299 * r + 0.587 * g + 0.114 * b) / 255; if (l > 0.45) { r *= 0.45 / l; g *= 0.45 / l; b *= 0.45 / l; } }
         return `rgb(${r | 0},${g | 0},${b | 0})`;
@@ -342,7 +349,7 @@ void main() { o = vec4(vCol * vA, vA); }`;
                 cur = col[v];
                 curL = li;
                 ctx.beginPath();
-                ctx.strokeStyle = ctx.fillStyle = hexOf(cur, L);
+                ctx.strokeStyle = ctx.fillStyle = hexOf(cur, L, pass === 1);
                 ctx.globalAlpha = alphaOf(cur, L);
               }
               ctx.moveTo(ax, ay);
@@ -375,7 +382,7 @@ void main() { o = vec4(vCol * vA, vA); }`;
   function adjustColor(hex, fgHex, mode) {
     const n = parseInt(hex.slice(1), 16);
     let r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
-    if ((r > 250 && g > 250 && b > 250) || (r < 5 && g < 5 && b < 5) || mode === 2) return fgHex;
+    if ((r > 250 && g > 250 && b > 250) || (r < 5 && g < 5 && b < 5) || mode === 2 || mode === 3) return fgHex;
     if (mode === 1) { const l = (0.299 * r + 0.587 * g + 0.114 * b) / 255; if (l > 0.45) { r *= 0.45 / l; g *= 0.45 / l; b *= 0.45 / l; } }
     return '#' + [r, g, b].map((v) => Math.round(v).toString(16).padStart(2, '0')).join('');
   }

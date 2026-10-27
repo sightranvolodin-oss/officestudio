@@ -61,7 +61,14 @@ pub struct TextData {
     /// width factor (TEXT code 41)
     #[serde(default = "one", skip_serializing_if = "is_one")]
     pub wf: f64,
+    /// MTEXT background mask: 0xRRGGBB, or BG_MASK = "drawing background colour"
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mask: Option<u32>,
+    /// mask border offset factor (code 45, 1.0 … 5.0)
+    #[serde(default = "one", skip_serializing_if = "is_one")]
+    pub mk: f64,
 }
+pub const BG_MASK: u32 = 0x0100_0000;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct PatLine {

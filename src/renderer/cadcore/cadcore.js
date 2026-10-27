@@ -640,6 +640,14 @@ let wasm_bindgen;
             return v1;
         }
         /**
+         * $INSUNITS of the drawing (4 = mm, 6 = m, 0 = not set)
+         * @returns {number}
+         */
+        units() {
+            const ret = wasm.engine_units(this.__wbg_ptr);
+            return ret;
+        }
+        /**
          * @returns {Float64Array}
          */
         origin() {

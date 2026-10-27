@@ -35,3 +35,12 @@ fn big_load() {
     let (b, out) = d.view_extents(true);
     println!("view {:.0},{:.0}-{:.0},{:.0} out={out}", b.x1, b.y1, b.x2, b.y2);
 }
+#[test]
+fn measure_shapes() {
+    use cadcore::Engine;
+    let mut e = Engine::new();
+    let ids = e.add_json(r#"[{"layer":"0","type":"poly","closed":true,"pts":[{"x":0,"y":0},{"x":10,"y":0},{"x":10,"y":10},{"x":0,"y":10}]},{"layer":"0","type":"circle","c":{"x":0,"y":0},"r":1},{"layer":"0","type":"poly","closed":true,"pts":[{"x":0,"y":0,"b":1},{"x":2,"y":0,"b":1}]},{"layer":"0","type":"hatch","solid":true,"loops":[[{"x":0,"y":0},{"x":10,"y":0},{"x":10,"y":10},{"x":0,"y":10}],[{"x":2,"y":2},{"x":4,"y":2},{"x":4,"y":4},{"x":2,"y":4}]]}]"#).unwrap();
+    for i in ids {
+        println!("{}", e.sel_summary(&[i]));
+    }
+}

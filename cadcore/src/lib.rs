@@ -39,7 +39,7 @@ impl Engine {
     }
 
     pub fn stats(&self) -> String {
-        json!({ "entities": self.d.alive_count(), "blocks": self.d.blocks.len(), "layers": self.d.layers.list.iter().filter(|l| !l.deleted).count(), "skipped": self.d.skipped }).to_string()
+        json!({ "entities": self.d.alive_count(), "blocks": self.d.blocks.len(), "layers": self.d.layers.list.iter().filter(|l| !l.deleted).count(), "skipped": self.d.skipped, "units": self.d.units }).to_string()
     }
 
     // ------------------------------------------------------------ layers
@@ -218,20 +218,30 @@ impl Engine {
         let mut layers = std::collections::BTreeSet::new();
         let mut colors = std::collections::BTreeSet::new();
         let mut n = 0;
+        let (mut len, mut area, mut n_area) = (0.0, 0.0, 0);
         for &i in ids {
             if let Some(Some(e)) = self.d.ents.get(i as usize) {
                 n += 1;
+                if ids.len() <= 200000 {
+                    let (l, a) = self.d.measure(e);
+                    len += l;
+                    if let Some(a) = a { area += a; n_area += 1; }
+                }
                 let t = serde_json::to_value(&e.geo).ok().and_then(|v| v.get("type").and_then(|t| t.as_str()).map(String::from)).unwrap_or_default();
                 types.insert(t);
                 layers.insert(self.d.layers.name(e.layer).to_string());
                 colors.insert(e.color.map(hex).unwrap_or_default());
             }
         }
-        json!({ "count": n, "types": types, "layers": layers, "colors": colors }).to_string()
+        json!({ "count": n, "types": types, "layers": layers, "colors": colors, "length": len, "area": area, "areaCount": n_area }).to_string()
     }
     /// filter ids down to entities that still exist
     pub fn alive(&self, ids: &[u32]) -> Vec<u32> {
         ids.iter().copied().filter(|&i| matches!(self.d.ents.get(i as usize), Some(Some(_)))).collect()
+    }
+    /// $INSUNITS of the drawing (4 = mm, 6 = m, 0 = not set)
+    pub fn units(&self) -> i32 {
+        self.d.units as i32
     }
     pub fn count(&self) -> u32 {
         self.d.alive_count() as u32

@@ -202,6 +202,7 @@ pub struct Drawing {
     future: Vec<Change>,
     pub skipped: usize,
     pub sel: Vec<f32>,
+    pub units: i64,
 }
 
 impl Default for Drawing {
@@ -228,6 +229,7 @@ impl Default for Drawing {
             future: Vec::new(),
             skipped: 0,
             sel: Vec::new(),
+            units: 0,
         }
     }
 }
@@ -240,7 +242,7 @@ impl Drawing {
     pub fn from_dxf(bytes: &[u8]) -> Result<Drawing, String> {
         let text = dxf::decode(bytes)?;
         let p = dxf::parse(&text);
-        let mut d = Drawing { layers: p.layers, blocks: p.blocks, skipped: p.skipped, ..Default::default() };
+        let mut d = Drawing { layers: p.layers, blocks: p.blocks, skipped: p.skipped, units: p.units, ..Default::default() };
         d.ents = p.ents.into_iter().map(Some).collect();
         d.reindex();
         d.choose_origin();
@@ -557,7 +559,7 @@ impl Drawing {
             }
             for t in &self.texts[k] {
                 let d = &t.t;
-                f.extend_from_slice(&[d.p.x, d.p.y, d.h, d.rot, d.halign, d.valign, if d.mtext { 1.0 } else { 0.0 }, d.wf, t.layer as f64, t.rgb.map(|v| v as f64).unwrap_or(-1.0), t.alpha.map(|a| a as f64).unwrap_or(-1.0)]);
+                f.extend_from_slice(&[d.p.x, d.p.y, d.h, d.rot, d.halign, d.valign, if d.mtext { 1.0 } else { 0.0 }, d.wf, t.layer as f64, t.rgb.map(|v| v as f64).unwrap_or(-1.0), t.alpha.map(|a| a as f64).unwrap_or(-1.0), d.mask.map(|m| m as f64).unwrap_or(-1.0), d.mk]);
                 if !s.is_empty() || !f.is_empty() {
                     s.push('\u{1}');
                 }
@@ -795,6 +797,55 @@ impl Drawing {
             }
         }
         best.map(|b| b.0)
+    }
+    /// (length, area) of an entity; area only for closed shapes
+    pub fn measure(&self, e: &Ent) -> (f64, Option<f64>) {
+        let tol = (self.tol * 0.1).max(1e-9);
+        let plen = |pp: &[P]| pp.windows(2).map(|w| dist(w[0], w[1])).sum::<f64>();
+        match &e.geo {
+            Geo::Line { p1, p2 } => (dist(*p1, *p2), None),
+            Geo::Poly { pts, closed, .. } => {
+                // exact for arcs (bulges): chord polygon + circular segments
+                let n = pts.len();
+                let segs = if *closed { n } else { n.saturating_sub(1) };
+                let (mut len, mut shoe, mut segarea) = (0.0, 0.0, 0.0);
+                for i in 0..segs {
+                    let (a, b) = (pts[i], pts[(i + 1) % n]);
+                    let c = dist(a.p(), b.p());
+                    shoe += a.x * b.y - b.x * a.y;
+                    if a.b.abs() > 1e-12 && c > 0.0 {
+                        let th = 4.0 * a.b.atan();
+                        let r = c / (2.0 * (th / 2.0).sin().abs());
+                        len += r * th.abs();
+                        segarea += a.b.signum() * r * r / 2.0 * (th.abs() - th.abs().sin());
+                    } else {
+                        len += c;
+                    }
+                }
+                (len, if *closed && n >= 2 { Some((shoe / 2.0 + segarea).abs()) } else { None })
+            }
+            Geo::Circle { r, .. } => (2.0 * std::f64::consts::PI * r, Some(std::f64::consts::PI * r * r)),
+            Geo::Arc { c, r, a0, a1 } => (plen(&arc_points(*c, *r, *a0, *a1, tol)), None),
+            Geo::Ellipse { c, major, ratio, t0, t1 } => {
+                let pp = ellipse_points(*c, *major, *ratio, *t0, *t1, tol);
+                let full = ((t1 - t0).abs() - 2.0 * std::f64::consts::PI).abs() < 1e-6;
+                (plen(&pp), if full { Some(poly_area(&pp).abs()) } else { None })
+            }
+            Geo::Hatch { loops, .. } => {
+                let polys: Vec<Vec<P>> = loops.iter().map(|lp| poly_points(lp, true, tol)).filter(|p| p.len() >= 3).collect();
+                let mut area = 0.0;
+                let mut len = 0.0;
+                for (i, pp) in polys.iter().enumerate() {
+                    // even-odd nesting: loops inside an odd number of others are holes
+                    let depth = polys.iter().enumerate().filter(|(j, q)| *j != i && point_in_poly(pp[0], q)).count();
+                    let a = poly_area(pp).abs();
+                    area += if depth % 2 == 0 { a } else { -a };
+                    len += plen(pp);
+                }
+                (len, Some(area.abs()))
+            }
+            _ => (0.0, None),
+        }
     }
     pub fn next_id(&self) -> u32 {
         self.ents.len() as u32

@@ -151,6 +151,31 @@ ipcMain.handle('export-png', async (e, { dataUrl, suggestedName }) => {
   return { ok: true, path: r.filePath };
 });
 
+// A rendered sheet (PNG at print resolution) -> PDF of the exact paper size, or the system print dialog
+ipcMain.handle('print-raster', async (e, { png, widthMm, heightMm, action, suggestedName }) => {
+  const tmp = fs.mkdtempSync(path.join(require('os').tmpdir(), 'osprint-'));
+  const pw = new BrowserWindow({ show: false, webPreferences: { offscreen: action !== 'print', javascript: false } });
+  try {
+    fs.writeFileSync(path.join(tmp, 'sheet.png'), Buffer.from(png));
+    fs.writeFileSync(path.join(tmp, 'sheet.html'), `<!DOCTYPE html><html><head><meta charset="utf-8"><style>@page{size:${widthMm}mm ${heightMm}mm;margin:0}html,body{margin:0;padding:0}img{display:block;width:${widthMm}mm;height:${heightMm}mm}</style></head><body><img src="sheet.png"></body></html>`);
+    await pw.loadFile(path.join(tmp, 'sheet.html'));
+    if (action === 'print') {
+      const ok = await new Promise((resolve) => pw.webContents.print({ silent: false, printBackground: true, margins: { marginType: 'none' }, pageSize: { width: Math.round(widthMm * 1000), height: Math.round(heightMm * 1000) } }, (success, why) => resolve(success || why)));
+      return ok === true ? { ok: true } : { ok: false, canceled: ok === 'cancelled', error: String(ok) };
+    }
+    const r = await dialog.showSaveDialog(win, { title: 'Сохранить PDF', defaultPath: path.join(app.getPath('documents'), (suggestedName || 'Чертёж').replace(/\.[^.]+$/, '') + '.pdf'), filters: [{ name: 'PDF', extensions: ['pdf'] }] });
+    if (r.canceled || !r.filePath) return { ok: false, canceled: true };
+    const pdf = await pw.webContents.printToPDF({ preferCSSPageSize: true, printBackground: true, margins: { marginType: 'none' } });
+    fs.writeFileSync(r.filePath, pdf);
+    return { ok: true, path: r.filePath };
+  } catch (err) {
+    return { ok: false, error: err.message || String(err) };
+  } finally {
+    pw.destroy();
+    try { fs.rmSync(tmp, { recursive: true, force: true }); } catch {}
+  }
+});
+
 ipcMain.handle('pick-image', async () => {
   const r = await dialog.showOpenDialog(win, { title: 'Вставить изображение', properties: ['openFile'], filters: [{ name: 'Изображения', extensions: ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'svg'] }] });
   if (r.canceled || !r.filePaths[0]) return null;

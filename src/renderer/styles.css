@@ -350,3 +350,30 @@ body.dragging #drop-hint { display: grid; }
 .layer-row[hidden], .update-btn[hidden] { display: none; }
 .prop-inner { height: 28px; border: 1px solid #b9d0fa; background: #e8f0fd; color: #1d4fa8; border-radius: 6px; padding: 0 8px; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; min-width: 0; }
 .prop-inner:hover { background: #d6e4fb; }
+
+/* drawing: find text */
+.cad-find { position: absolute; top: 8px; right: 10px; width: 340px; background: #fff; border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 6px 24px rgba(0,0,0,.18); z-index: 20; }
+.cad-find .row { display: flex; align-items: center; gap: 4px; padding: 6px; }
+.cad-find input { flex: 1; height: 30px; padding: 0 8px; border: 1px solid var(--line); border-radius: 6px; min-width: 0; }
+.cad-find button { border: 0; background: none; width: 26px; height: 26px; border-radius: 5px; display: grid; place-items: center; color: var(--muted); cursor: pointer; }
+.cad-find button:hover { background: var(--hover); color: var(--text); }
+.cad-find .fc { font-size: 12px; color: var(--muted); min-width: 52px; text-align: right; white-space: nowrap; }
+.cad-find-list { max-height: 260px; overflow: auto; border-top: 1px solid var(--line); }
+.cad-find-list:empty { display: none; }
+.cad-find-list .it { display: flex; gap: 8px; padding: 5px 10px; cursor: pointer; font-size: 12.5px; }
+.cad-find-list .it:hover { background: var(--hover); }
+.cad-find-list .it.on { background: #fff4e5; }
+.cad-find-list .it .t { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cad-find-list .it .l { color: var(--muted); max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
+.cad-find-list .more { padding: 6px 10px; color: var(--muted); font-size: 12px; }
+.props .meas { font-weight: 600; color: #14532d; font-size: 12.5px; }
+
+/* print dialog */
+.print-form .field { display: grid; grid-template-columns: 130px 1fr; align-items: center; gap: 8px; margin-bottom: 8px; }
+.print-form .field label { margin: 0; }
+.print-info { margin: 10px 0 4px; padding: 8px 10px; background: #eef6f1; border-radius: 6px; font-size: 13px; color: #14532d; }
+.print-info.warn { background: #fff4e5; color: #8a4b00; }
+.print-hint { font-size: 12px; color: var(--muted); margin-bottom: 10px; }
+.print-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 6px; }
+.print-actions button { height: 34px; padding: 0 16px; border-radius: 8px; border: 1px solid var(--line-strong); background: #fff; cursor: pointer; }
+.print-actions button.primary { background: #1f9d6b; color: #fff; border-color: #1f9d6b; }

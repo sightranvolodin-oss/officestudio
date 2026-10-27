@@ -7,6 +7,8 @@ use std::collections::HashMap;
 use std::f64::consts::PI;
 
 pub struct Parsed {
+    /// $INSUNITS (0 unitless, 4 mm, 5 cm, 6 m …)
+    pub units: i64,
     pub layers: Layers,
     pub blocks: HashMap<String, Block>,
     pub ents: Vec<Ent>,
@@ -320,7 +322,23 @@ fn text_from(r: &Rec, valign_code: i32, neg: bool) -> TextData {
         valign: va as f64,
         mtext: false,
         wf: r.f(41).filter(|w| *w > 0.0).unwrap_or(1.0),
+        mask: None,
+        mk: 1.0,
     }
+}
+
+/// MTEXT background mask (code 90 flags: 1 = fill, 2 = use the drawing background colour)
+fn mtext_mask(r: &Rec) -> (Option<u32>, f64) {
+    let f = r.i(90).unwrap_or(0);
+    if f & 1 == 0 && f & 2 == 0 {
+        return (None, 1.0);
+    }
+    let k = r.f(45).filter(|k| *k >= 1.0).unwrap_or(1.5);
+    if f & 2 != 0 {
+        return (Some(BG_MASK), k);
+    }
+    let col = r.i(421).map(|c| c as u32 & 0xffffff).or_else(|| r.i(63).map(|ci| ACI[(ci.unsigned_abs() as usize).clamp(1, 255)]));
+    (Some(col.unwrap_or(BG_MASK)), k)
 }
 
 fn hatch_from(p: &[Tok], neg: bool) -> Option<Geo> {
@@ -635,6 +653,8 @@ fn entity(kind: &str, r: &Rec, ctx: &mut Ctx) -> Option<Ent> {
                 valign: [3.0, 2.0, 1.0][((ap - 1) / 3) as usize],
                 mtext: true,
                 wf: 1.0,
+                mask: mtext_mask(r).0,
+                mk: mtext_mask(r).1,
             })
         }
         "INSERT" => {
@@ -877,6 +897,7 @@ pub fn parse(text: &str) -> Parsed {
     let mut blocks: HashMap<String, Block> = HashMap::new();
     let mut ents = Vec::new();
     let mut skipped = 0usize;
+    let mut units = 0i64;
     let mut buf: Vec<Tok> = Vec::new();
     while let Some(kind) = rd.peek_kind() {
         rd.next();
@@ -891,6 +912,19 @@ pub fn parse(text: &str) -> Parsed {
             _ => String::new(),
         };
         match name.as_str() {
+            "HEADER" => {
+                while let Some(t) = rd.next() {
+                    if t.0 == 0 && t.1.trim() == "ENDSEC" {
+                        break;
+                    }
+                    if t.0 == 9 && t.1.trim() == "$INSUNITS" {
+                        if let Some((70, v)) = rd.peek() {
+                            units = iv(v);
+                        }
+                    }
+                }
+                continue;
+            }
             "TABLES" => {
                 while let Some(k) = rd.peek_kind() {
                     if k == "ENDSEC" {
@@ -962,5 +996,5 @@ pub fn parse(text: &str) -> Parsed {
             }
         }
     }
-    Parsed { layers, blocks, ents, skipped }
+    Parsed { units, layers, blocks, ents, skipped }
 }

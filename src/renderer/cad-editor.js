@@ -5,6 +5,11 @@
   const BG = '#1b1e24';
   const FG = '#e8eaed';
   const BG_KEY = 'officestudio.cad.bg';
+  const TS = 13; // numbers per text in eng.texts(): x y h rot ha va mtext wf layer rgb alpha mask maskK
+  const BG_MASK = 0x1000000;
+  const hexRGB = (h) => { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
+  const isNeutral = (h) => { const [r, g, b] = hexRGB(h); return (r > 250 && g > 250 && b > 250) || (r < 5 && g < 5 && b < 5); };
+  const luminance = (h) => { const [r, g, b] = hexRGB(h); return (0.299 * r + 0.587 * g + 0.114 * b) / 255; };
   const BG_PRESETS = [
     ['#1b1e24', 'Тёмный (по умолчанию)'],
     ['#212830', 'Тёмно-серый, как в AutoCAD'],
@@ -117,7 +122,7 @@
       this.input = el('input', { type: 'text', spellcheck: 'false', placeholder: 'введите команду (L, PL, C, REC, A, T, M, CO, RO, DIM, E…) или координаты' });
       this.coords = el('span', { class: 'coords' });
       const cmdbar = el('div', { class: 'cad-cmd' }, [this.prompt, this.input, this.coords]);
-      root.append(this.buildToolbar(), el('div', { class: 'cad-main' }, [el('div', { style: { flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 } }, [this.wrap, cmdbar]), this.side]), this.buildStatus());
+      root.append(this.buildToolbar(), el('div', { class: 'cad-main' }, [el('div', { style: { flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, position: 'relative' } }, [this.wrap, cmdbar]), this.side]), this.buildStatus());
       this.info.textContent = 'Загрузка движка…';
 
       this.ready = CadCore.load().then(() => this.init(data)).catch((e) => {
@@ -158,6 +163,7 @@
       if (this.eng.count()) this.zoomExtents();
       else this.view = { cx: 148, cy: 105, s: Math.min(this.W / 340, this.H / 250) || 2 };
       this.buildSide();
+      this.syncUnitBtn();
       const ms = Math.round(performance.now() - t0);
       this.info.textContent = (this.loadStats ? `Объектов: ${this.eng.count().toLocaleString('ru')} · открыт за ${ms} мс · ` : '') + (this.gl.software ? 'программная отрисовка' : 'видеоускорение');
       this.redraw();
@@ -165,13 +171,15 @@
 
     // ------------------------------------------------------------ engine sync
     /** full rebuild of GPU buffers (load, or after many edits) */
-    rebuild(initial) {
+    rebuild(initial, extraView) {
       this.eng.build_base();
       this.gl.upload('base', this.eng);
+      if (extraView) extraView.upload('base', this.eng);
       this.eng.release_base();
       this.eng.take_hidden();
       this.eng.build_overlay();
       this.gl.upload('overlay', this.eng);
+      if (extraView) extraView.upload('overlay', this.eng);
       this.reloadTexts();
       this.reloadInk();
       if (!initial) this.syncSel();
@@ -241,15 +249,16 @@
       const clr = btn({ icon: 'inkClear', title: 'Удалить все пометки', keepFocus: false, onClick: () => this.clearInk() });
       this.cmdBtns.push(pen, er);
       const colorBtn = colorButton({ icon: 'paint', title: 'Цвет новых объектов / выделенных (пусто = по слою)', fill: true, allowNone: true, noneLabel: 'По слою', get: () => this.color, onPick: (c) => { this.color = c; if (this.sel.size) this.setProp('color', c); } });
-      this.pngBtn = btn({ icon: 'download', label: 'PNG', title: 'Экспорт в PNG (Ctrl+E)', keepFocus: false, onClick: () => this.exportMenu() });
+      this.pngBtn = btn({ icon: 'download', label: 'PNG', title: 'Экспорт в PNG', keepFocus: false, onClick: () => this.exportMenu() });
+      this.printBtn = btn({ icon: 'pdf', label: 'Печать / PDF', title: 'Печать и PDF в масштабе (Ctrl+P)', keepFocus: false, onClick: () => this.printDialog() });
       return el('div', { class: 'toolbar', style: { '--accent': 'var(--cad)' } }, [
         group(btn({ icon: 'undo', title: 'Отменить (Ctrl+Z)', keepFocus: false, onClick: () => this.undo() }), btn({ icon: 'redo', title: 'Повторить (Ctrl+Y)', keepFocus: false, onClick: () => this.redo() })),
         group(...this.cmdBtns.slice(0, 8)),
         group(...editBtns),
         group(pen, er, clr),
         group(colorBtn),
-        group(btn({ icon: 'fit', label: 'Показать всё', title: 'Показать всё (Z)', keepFocus: false, onClick: () => this.zoomExtents() }), btn({ icon: 'ruler', title: 'Измерить расстояние (DI)', keepFocus: false, onClick: () => this.startCmd('measure') })),
-        group(this.bgBtn = this.makeBgButton(), this.pngBtn),
+        group(btn({ icon: 'fit', label: 'Показать всё', title: 'Показать всё (Z)', keepFocus: false, onClick: () => this.zoomExtents() }), btn({ icon: 'ruler', title: 'Измерить расстояние (DI)', keepFocus: false, onClick: () => this.startCmd('measure') }), btn({ icon: 'rectTool', title: 'Площадь и периметр контура (AREA). Если сразу нажать Enter — площадь выделенных объектов', keepFocus: false, onClick: () => this.startCmd('area') }), btn({ icon: 'search', title: 'Найти текст (Ctrl+F)', keepFocus: false, onClick: () => this.find() })),
+        group(this.bgBtn = this.makeBgButton(), this.printBtn, this.pngBtn),
       ]);
     }
     makeBgButton() {
@@ -309,7 +318,13 @@
         return b;
       };
       this.info = el('span');
-      return el('div', { class: 'statusbar' }, [el('span', { text: 'Чертёж' }), this.info, el('span', { class: 'spacer' }),
+      this.unitBtn = el('button', { class: 'st-btn', title: 'Единицы чертежа — для длин, площадей и масштаба печати. Щёлкните, чтобы изменить.' });
+      this.unitBtn.addEventListener('click', () => {
+        const r = this.unitBtn.getBoundingClientRect();
+        const set = (u) => { this.unitOverride = u; this._unit = null; this.syncUnitBtn(); this.buildProps(); };
+        UI.menu(r.left, r.top - 170, [['м', 'метры'], ['мм', 'миллиметры'], ['см', 'сантиметры'], ['км', 'километры']].map(([u, t]) => ({ label: `${t}${this.unitName() === u ? '  ✓' : ''}`, onClick: () => set(u) })));
+      });
+      return el('div', { class: 'statusbar' }, [el('span', { text: 'Чертёж' }), this.info, el('span', { class: 'spacer' }), this.unitBtn,
         mk('grid', 'СЕТКА', 'Показ сетки (F7)'), mk('snap', 'ШАГ', 'Привязка к сетке (F9)'), mk('ortho', 'ОРТО', 'Ортогональный режим (F8)'), mk('osnap', 'ПРИВЯЗКА', 'Объектная привязка: конечные точки, середины, центры (F3)')]);
     }
     toggle(key) {
@@ -489,6 +504,9 @@
       colSel.value = cur;
       colSel.addEventListener('change', () => this.setProp('color', colSel.value || null));
       grid.append(el('label', { text: 'Цвет' }), colSel);
+      // lengths and areas of the selection (sums for several objects)
+      if (sum.length > 0) grid.append(el('label', { text: ids.length > 1 ? 'Сумма длин' : 'Длина' }), el('span', { class: 'meas', text: this.fmtLen(sum.length) }));
+      if (sum.areaCount > 0) grid.append(el('label', { text: sum.areaCount > 1 || ids.length > 1 ? `Площадь (${sum.areaCount})` : 'Площадь' }), el('span', { class: 'meas', text: this.fmtArea(sum.area) }));
 
       if (ids.length === 1) {
         const idx = ids[0];
@@ -501,12 +519,11 @@
         if (e.type === 'line') {
           num('Начало X', () => e.p1.x, (n, v) => (n.p1.x = v)); num('Начало Y', () => e.p1.y, (n, v) => (n.p1.y = v));
           num('Конец X', () => e.p2.x, (n, v) => (n.p2.x = v)); num('Конец Y', () => e.p2.y, (n, v) => (n.p2.y = v));
-          grid.append(el('label', { text: 'Длина' }), el('span', { text: fmt(dist(e.p1, e.p2)) }));
           grid.append(el('label', { text: 'Угол' }), el('span', { text: fmt(((Math.atan2(e.p2.y - e.p1.y, e.p2.x - e.p1.x) / D2R) + 360) % 360) + '°' }));
         } else if (e.type === 'circle' || e.type === 'arc') {
           num('Центр X', () => e.c.x, (n, v) => (n.c.x = v)); num('Центр Y', () => e.c.y, (n, v) => (n.c.y = v)); num('Радиус', () => e.r, (n, v) => (n.r = Math.abs(v)));
           if (e.type === 'arc') { num('Нач. угол', () => e.a0, (n, v) => (n.a0 = v)); num('Кон. угол', () => e.a1, (n, v) => (n.a1 = v)); }
-          else grid.append(el('label', { text: 'Площадь' }), el('span', { text: fmt(Math.PI * e.r * e.r) }));
+
         } else if (e.type === 'text') {
           const t = el('input', { type: 'text', value: e.text.replace(/\n/g, ' ⏎ ') });
           t.addEventListener('change', () => { const n = JSON.parse(JSON.stringify(e)); n.text = t.value.replace(/ ⏎ /g, '\n'); this.replace(idx, n); });
@@ -526,6 +543,113 @@
           grid.append(el('label', { text: 'Заливка' }), el('span', { text: e.solid ? 'сплошная' : 'узор' }), el('label', { text: 'Контуров' }), el('span', { text: String(e.loops.length) }));
         }
       }
+    }
+
+    // ------------------------------------------------------------ units / measuring
+    /** drawing units: from $INSUNITS, otherwise guessed from the size of the drawing */
+    unitName() {
+      if (this.unitOverride) return this.unitOverride;
+      if (this._unit) return this._unit;
+      const u = this.eng ? this.eng.units() : 0;
+      const map = { 4: 'мм', 5: 'см', 6: 'м', 7: 'км' };
+      let unit = map[u] || '';
+      // $INSUNITS is often wrong (site plans in metres saved as "mm"): typical text height tells
+      const f = this.texts && this.texts.f;
+      if (f && f.length && (unit === 'мм' || unit === '')) {
+        const hs = [];
+        for (let i = 2; i < f.length && hs.length < 4000; i += TS * Math.max(1, Math.floor(f.length / TS / 4000))) hs.push(f[i]);
+        hs.sort((a, b) => a - b);
+        const med = hs[hs.length >> 1];
+        if (med > 0) unit = med < 15 ? 'м' : 'мм';
+      }
+      this._unit = unit || 'мм';
+      return this._unit;
+    }
+    syncUnitBtn() { if (this.unitBtn) this.unitBtn.textContent = 'Единицы: ' + this.unitName(); }
+    fmtLen(v) {
+      const u = this.unitName();
+      let s = fmt(v) + (u ? ' ' + u : '');
+      if (u === 'мм' && v >= 1000) s += `  (${fmt(v / 1000)} м)`;
+      return s;
+    }
+    fmtArea(v) {
+      const u = this.unitName();
+      if (u === 'мм') return `${fmt(v / 1e6)} м²  (${fmt(v)} мм²)`;
+      if (u === 'см') return `${fmt(v / 1e4)} м²`;
+      if (u === 'м') return `${fmt(v)} м²` + (v >= 10000 ? `  (${fmt(v / 10000)} га)` : '');
+      return fmt(v) + (u ? ` ${u}²` : '');
+    }
+    areaOf(pts) {
+      let a = 0, l = 0;
+      for (let i = 0; i < pts.length; i++) { const p = pts[i], q = pts[(i + 1) % pts.length]; a += p.x * q.y - q.x * p.y; l += dist(p, q); }
+      return { area: Math.abs(a) / 2, perim: l };
+    }
+
+    // ------------------------------------------------------------ find text
+    find() {
+      if (this.findBox) { this.findInput.focus(); this.findInput.select(); return; }
+      this.findInput = el('input', { type: 'search', placeholder: 'Найти текст на чертеже…' });
+      this.findCount = el('span', { class: 'fc' });
+      const prev = el('button', { title: 'Предыдущий (Shift+Enter)', html: icon('up', 14) });
+      const next = el('button', { title: 'Следующий (Enter)', html: icon('down', 14) });
+      const close = el('button', { title: 'Закрыть (Esc)', html: icon('x', 14) });
+      this.findList = el('div', { class: 'cad-find-list' });
+      this.findBox = el('div', { class: 'cad-find' }, [el('div', { class: 'row' }, [this.findInput, this.findCount, prev, next, close]), this.findList]);
+      this.wrap.parentElement.append(this.findBox);
+      const run = () => this.findRun(this.findInput.value);
+      this.findInput.addEventListener('input', () => { clearTimeout(this.findT); this.findT = setTimeout(run, 150); });
+      this.findInput.addEventListener('keydown', (e) => {
+        e.stopPropagation();
+        if (e.key === 'Enter') this.findStep(e.shiftKey ? -1 : 1);
+        if (e.key === 'Escape') this.closeFind();
+      });
+      prev.addEventListener('click', () => this.findStep(-1));
+      next.addEventListener('click', () => this.findStep(1));
+      close.addEventListener('click', () => this.closeFind());
+      this.findInput.focus();
+    }
+    closeFind() { if (this.findBox) { this.findBox.remove(); this.findBox = null; this.findHits = []; this.findMark = null; this.drawOverlay(); this.wrap.focus({ preventScroll: true }); } }
+    findRun(q) {
+      q = q.trim().toLowerCase();
+      this.findHits = [];
+      this.findList.innerHTML = '';
+      if (!q) { this.findCount.textContent = ''; this.findMark = null; this.drawOverlay(); return; }
+      const f = this.texts.f, strs = this.texts.s;
+      const n = Math.min(strs.length, f.length / TS);
+      const L = this.layerByIndex;
+      for (let i = 0; i < n; i++) {
+        if (!strs[i].toLowerCase().includes(q)) continue;
+        const layer = L[f[i * TS + 8]];
+        this.findHits.push({ i, x: f[i * TS], y: f[i * TS + 1], h: f[i * TS + 2], text: strs[i], layer: layer ? layer.name : '' });
+      }
+      this.findCount.textContent = this.findHits.length ? `${this.findHits.length.toLocaleString('ru')}` : 'нет';
+      this.findPos = -1;
+      this.findHits.slice(0, 300).forEach((h, k) => {
+        const row = el('div', { class: 'it' }, [el('span', { class: 't', text: h.text.replace(/\n/g, ' ') }), el('span', { class: 'l', text: h.layer })]);
+        row.addEventListener('click', () => { this.findPos = k; this.findShow(); });
+        this.findList.append(row);
+      });
+      if (this.findHits.length > 300) this.findList.append(el('div', { class: 'more', text: `…и ещё ${this.findHits.length - 300}. Уточните запрос.` }));
+      if (this.findHits.length) { this.findPos = 0; this.findShow(); }
+    }
+    findStep(d) {
+      if (!this.findHits || !this.findHits.length) return;
+      this.findPos = (this.findPos + d + this.findHits.length) % this.findHits.length;
+      this.findShow();
+    }
+    findShow() {
+      const h = this.findHits[this.findPos];
+      if (!h) return;
+      const L = this.layerByIndex[this.texts.f[h.i * TS + 8]];
+      if (L && !L.visible) { this.eng.set_layer_visible(L.name, true); this.refreshLayers(); this.buildSide(); }
+      // zoom so that the text is about 18 px high
+      this.view = { cx: h.x, cy: h.y, s: Math.max(this.view.s, Math.min(18 / h.h, 1e6)) };
+      this.findMark = { x: h.x, y: h.y, h: h.h };
+      [...this.findList.children].forEach((c, k) => c.classList.toggle('on', k === this.findPos));
+      const on = this.findList.children[this.findPos];
+      if (on) on.scrollIntoView({ block: 'nearest' });
+      this.findCount.textContent = `${this.findPos + 1} из ${this.findHits.length.toLocaleString('ru')}`;
+      this.redraw();
     }
 
     // ------------------------------------------------------------ view
@@ -613,7 +737,7 @@
       ctx.clearRect(0, 0, this.textCanvas.width, this.textCanvas.height);
       ctx.globalAlpha = 1;
       const f = this.texts.f, strs = this.texts.s;
-      const n = Math.min(strs.length, f.length / 11);
+      const n = Math.min(strs.length, f.length / TS);
       if (!n) return;
       const s = this.view.s, d = this.dpr;
       const v = this.visibleBox();
@@ -624,7 +748,7 @@
       ctx.font = '100px Arial, "Segoe UI", sans-serif';
       let drawn = 0;
       for (let i = 0; i < n; i++) {
-        const o = i * 11;
+        const o = i * TS;
         const h = f[o + 2];
         if (h * s < 1.2) continue;
         const x = f[o], y = f[o + 1];
@@ -634,7 +758,15 @@
         const layer = L[f[o + 8]];
         if (layer && !layer.visible) continue;
         const rgbNum = f[o + 9];
-        const color = adjustCadColor(rgbNum >= 0 ? '#' + rgbNum.toString(16).padStart(6, '0') : layer ? layer.hex : '#ffffff', fgHex, mode);
+        const rawHex = rgbNum >= 0 ? '#' + rgbNum.toString(16).padStart(6, '0') : layer ? layer.hex : '#ffffff';
+        let color = adjustCadColor(rawHex, fgHex, mode);
+        const mask = f[o + 11];
+        let maskHex = null;
+        if (mask >= 0) {
+          // white/black (ACI 7) adapt to what is behind them: the mask to the background, the text to the mask
+          maskHex = mask === BG_MASK || mode >= 2 ? th.bg : adjustCadColor('#' + Math.round(mask).toString(16).padStart(6, '0'), fgHex, 0);
+          if (isNeutral(rawHex) || mode >= 2) color = luminance(maskHex) > 0.5 ? '#000000' : '#ffffff';
+        }
         const rot = f[o + 3], ha = f[o + 4], va = f[o + 5], mtext = f[o + 6] === 1, wf = f[o + 7] || 1;
         const sp = this.w2s({ x, y });
         const k = (h * s) / 72;
@@ -652,6 +784,21 @@
           ctx.textBaseline = va === 3 ? 'top' : va === 2 ? 'middle' : va === 1 ? 'bottom' : 'alphabetic';
           y0 = 0;
         }
+        if (maskHex) {
+          // MTEXT background mask: hides what lies under the text, like in AutoCAD
+          let w = 0;
+          for (const ln of lines) w = Math.max(w, ctx.measureText(ln).width);
+          const pad = Math.max(0, (f[o + 12] || 1.5) - 1) * 36;
+          const x0 = ctx.textAlign === 'center' ? -w / 2 : ctx.textAlign === 'right' ? -w : 0;
+          const top = mtext ? y0 - 72 : va === 3 ? 0 : va === 2 ? -36 : -72;
+          const bottom = (mtext ? y0 + (lines.length - 1) * lh : top + 72) + 18;
+          const a0 = ctx.globalAlpha;
+          ctx.globalAlpha = 1;
+          ctx.fillStyle = maskHex;
+          ctx.fillRect(x0 - pad, top - pad, w + 2 * pad, bottom - top + 2 * pad);
+          ctx.globalAlpha = a0;
+          ctx.fillStyle = color;
+        }
         for (let j = 0; j < lines.length; j++) ctx.fillText(lines[j], 0, y0 + j * lh);
         if (++drawn > 30000) break;
       }
@@ -663,6 +810,20 @@
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.clearRect(0, 0, this.over.width, this.over.height);
       if (!this.eng) return;
+      if (this.findMark) {
+        const m = this.findMark, sp = this.w2s(m);
+        const r = Math.max(14, m.h * this.view.s * 1.2);
+        ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+        ctx.strokeStyle = '#ff9f1a'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.arc(sp.x, sp.y, r, 0, Math.PI * 2); ctx.stroke();
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+      }
+      if (this.areaMark && this.areaMark.length >= 3) {
+        this.worldTransform(ctx);
+        ctx.fillStyle = 'rgba(255, 159, 26, 0.25)'; ctx.strokeStyle = '#ff9f1a'; ctx.lineWidth = this.lw(ctx, 2);
+        ctx.beginPath(); this.areaMark.forEach((p, k) => (k ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y))); ctx.closePath(); ctx.fill(); ctx.stroke();
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+      }
       // thick red pencil marks (also present in the GPU buffers at 1px)
       const inkVisible = !this.layers.some((l) => l.name === INK_LAYER && !l.visible);
       if (inkVisible && (this.ink.length || (this.inkLive && this.inkLive.length))) {
@@ -832,11 +993,12 @@
         this.syncCmdBtns(name);
         return;
       }
+      this.areaMark = null;
       if (name !== 'pencil' && name !== 'inkerase') this.lastCmd = name;
       this.cmd = { name, pts: [], excl: ['move', 'copy', 'rotate', 'mirror'].includes(name) ? new Set(this.sel) : null };
       const prompts = {
         line: 'ОТРЕЗОК  Первая точка:', pline: 'ПОЛИЛИНИЯ  Начальная точка:', rect: 'ПРЯМОУГОЛЬНИК  Первый угол:', circle: 'КРУГ  Центр:',
-        arc: 'ДУГА  Начальная точка:', text: 'ТЕКСТ  Точка вставки:', dim: 'РАЗМЕР  Первая точка:', measure: 'ИЗМЕРИТЬ  Первая точка:',
+        arc: 'ДУГА  Начальная точка:', text: 'ТЕКСТ  Точка вставки:', dim: 'РАЗМЕР  Первая точка:', measure: 'ИЗМЕРИТЬ  Первая точка:', printwin: 'ПЕЧАТЬ  Первый угол области:', area: 'ПЛОЩАДЬ  Укажите вершины контура (Enter — посчитать; Enter сразу — площадь выделенных объектов):',
         pencil: 'КАРАНДАШ  Рисуйте мышью поверх чертежа (Esc — выход):', inkerase: 'ЛАСТИК  Проведите по красным пометкам, чтобы стереть (Esc — выход):',
         move: 'ПЕРЕНЕСТИ  Базовая точка:', copy: 'КОПИРОВАТЬ  Базовая точка:', rotate: 'ПОВЕРНУТЬ  Базовая точка:', mirror: 'ЗЕРКАЛО  Первая точка оси:',
       };
@@ -887,6 +1049,19 @@
             this.startCmd(null);
           } else this.setPrompt('ИЗМЕРИТЬ  Вторая точка:');
           break;
+        case 'printwin':
+          if (n === 2) {
+            const [a, b] = c.pts;
+            this.printRegion = [Math.min(a.x, b.x), Math.min(a.y, b.y), Math.max(a.x, b.x), Math.max(a.y, b.y)];
+            this.startCmd(null);
+            this.printDialog(this.printRegion);
+          } else this.setPrompt('ПЕЧАТЬ  Второй угол области:');
+          break;
+        case 'area': {
+          if (n >= 3) { const r = this.areaOf(c.pts); this.setPrompt(`ПЛОЩАДЬ  ${this.fmtArea(r.area)} · периметр ${this.fmtLen(r.perim)}   (следующая вершина или Enter)`); }
+          else this.setPrompt('ПЛОЩАДЬ  Следующая вершина:');
+          break;
+        }
         case 'dim':
           if (n === 3) { this.makeDim(...c.pts); this.repeatCmd(); }
           else this.setPrompt(n === 1 ? 'РАЗМЕР  Вторая точка:' : 'РАЗМЕР  Положение размерной линии:');
@@ -919,6 +1094,19 @@
       if (!c) return;
       if (c.name === 'pline' && c.pts.length >= 2) this.add([this.newEnt({ type: 'poly', closed: !!c.close, pts: c.pts.map((p) => ({ x: p.x, y: p.y, b: 0 })) })]);
       if (c.name === 'pickfor') { const then = c.then; this.cmd = null; if (this.sel.size) this.startCmd(then); else this.startCmd(null); return; }
+      if (c.name === 'area') {
+        let msg;
+        if (c.pts.length >= 3) {
+          const r = this.areaOf(c.pts);
+          msg = `Площадь: ${this.fmtArea(r.area)}   Периметр: ${this.fmtLen(r.perim)}`;
+          this.areaMark = c.pts.slice();
+        } else if (this.sel.size) {
+          const sum = JSON.parse(this.eng.sel_summary(Uint32Array.from(this.sel)));
+          msg = sum.areaCount ? `Площадь ${sum.areaCount} объект(ов): ${this.fmtArea(sum.area)}   Длина контуров: ${this.fmtLen(sum.length)}` : 'Среди выделенных нет замкнутых контуров (замкнутая полилиния, круг, штриховка)';
+        } else msg = 'Укажите хотя бы 3 вершины или сначала выделите замкнутые объекты';
+        toast(msg, null, 10000);
+        this.info.textContent = msg;
+      }
       this.startCmd(null);
     }
     /** live move/rotate/mirror preview: the selection outline is transformed on the GPU */
@@ -938,6 +1126,8 @@
       const a = c.pts[c.pts.length - 1];
       switch (c.name) {
         case 'line': case 'measure': return [{ type: 'line', p1: a, p2: p }];
+        case 'printwin': return [{ type: 'poly', closed: true, pts: [{ x: a.x, y: a.y }, { x: p.x, y: a.y }, { x: p.x, y: p.y }, { x: a.x, y: p.y }] }];
+        case 'area': return [{ type: 'poly', closed: c.pts.length >= 2, pts: [...c.pts, p].map((q) => ({ ...q, b: 0 })) }];
         case 'pline': return [{ type: 'poly', pts: [...c.pts, p].map((q) => ({ ...q, b: 0 })), closed: false }];
         case 'rect': return [{ type: 'poly', closed: true, pts: [{ x: a.x, y: a.y }, { x: p.x, y: a.y }, { x: p.x, y: p.y }, { x: a.x, y: p.y }] }];
         case 'circle': return [{ type: 'circle', c: a, r: dist(a, p) }, { type: 'line', p1: a, p2: p, __ghost: true }];
@@ -1105,7 +1295,7 @@
       const map = {
         L: 'line', LINE: 'line', 'ОТРЕЗОК': 'line', PL: 'pline', PLINE: 'pline', REC: 'rect', RECT: 'rect', RECTANG: 'rect', C: 'circle', CIRCLE: 'circle', 'КРУГ': 'circle',
         A: 'arc', ARC: 'arc', 'ДУГА': 'arc', T: 'text', TEXT: 'text', DT: 'text', MT: 'text', MTEXT: 'text', 'ТЕКСТ': 'text', M: 'move', MOVE: 'move', 'ПЕРЕНЕСТИ': 'move', CO: 'copy', CP: 'copy', COPY: 'copy',
-        'КОПИРОВАТЬ': 'copy', RO: 'rotate', ROTATE: 'rotate', 'ПОВЕРНУТЬ': 'rotate', MI: 'mirror', MIRROR: 'mirror', 'ЗЕРКАЛО': 'mirror', DIM: 'dim', DLI: 'dim', DAL: 'dim', DI: 'measure', DIST: 'measure',
+        'КОПИРОВАТЬ': 'copy', RO: 'rotate', ROTATE: 'rotate', 'ПОВЕРНУТЬ': 'rotate', MI: 'mirror', MIRROR: 'mirror', 'ЗЕРКАЛО': 'mirror', DIM: 'dim', DLI: 'dim', DAL: 'dim', DI: 'measure', DIST: 'measure', AREA: 'area', AA: 'area', 'ПЛОЩАДЬ': 'area', 'ПЛ': 'area',
       };
       if (map[up]) return this.startCmd(map[up]);
       if (up === 'E' || up === 'ERASE' || up === 'СОТРИ') return this.erase();
@@ -1186,6 +1376,7 @@
       if (k === 'F7') { e.preventDefault(); return this.toggle('grid'); }
       if (k === 'F8') { e.preventDefault(); return this.toggle('ortho'); }
       if (k === 'F9') { e.preventDefault(); return this.toggle('snap'); }
+      if (ctrl && (k.toLowerCase() === 'p' || k === 'з')) { e.preventDefault(); return this.printDialog(); }
       if (ctrl && k.toLowerCase() === 'a') { e.preventDefault(); this.sel = new Set(this.eng.select_window(-1e300, -1e300, 1e300, 1e300, true)); return this.selChanged(); }
       if (ctrl && k.toLowerCase() === 'c' && this.sel.size) { e.preventDefault(); this.clip = JSON.parse(this.eng.entities_json(Uint32Array.from(this.sel))); toast(`Скопировано: ${this.clip.length.toLocaleString('ru')}`); return; }
       if (ctrl && k.toLowerCase() === 'v' && this.clip) {
@@ -1310,6 +1501,145 @@
       const n = JSON.parse(JSON.stringify(e));
       n.text = r.text; if (r.h > 0) n.h = r.h; n.mtext = n.mtext || r.text.includes('\n');
       this.replace(i, n);
+    }
+
+    // ------------------------------------------------------------ print / PDF
+    /** opens the print dialog; `region` = world box picked with «Рамка» */
+    async printDialog(region) {
+      if (!this.eng) return;
+      const o = (this.printOpts = this.printOpts || { what: 'all', paper: 'A3', orient: 'auto', scale: 'fit', custom: 500, color: 'color', lw: '0.18', title: true });
+      if (region) o.what = 'window';
+      const unit = this.unitName();
+      const body = el('div', { class: 'print-form' });
+      const row = (label, input) => body.append(el('div', { class: 'field' }, [el('label', { text: label }), input]));
+      const sel = (name, options) => { const s = el('select'); options.forEach(([v, t]) => s.append(el('option', { value: v, text: t }))); s.value = o[name]; s.addEventListener('change', () => { o[name] = s.value; upd(); }); return s; };
+      const what = sel('what', [['all', 'Весь чертёж (видимые слои)'], ['view', 'Текущий вид на экране'], ['window', region || this.printRegion ? 'Рамка (выбрана)' : 'Рамка — выбрать на чертеже…']]);
+      row('Что печатать', what);
+      row('Формат листа', sel('paper', [['A4', 'A4 (210 × 297)'], ['A3', 'A3 (297 × 420)'], ['A2', 'A2 (420 × 594)'], ['A1', 'A1 (594 × 841)'], ['A0', 'A0 (841 × 1189)']]));
+      row('Ориентация', sel('orient', [['auto', 'Автоматически'], ['land', 'Альбомная'], ['port', 'Книжная']]));
+      const scaleSel = sel('scale', [['fit', 'Вписать в лист'], ['100', '1:100'], ['200', '1:200'], ['250', '1:250'], ['500', '1:500'], ['1000', '1:1000'], ['2000', '1:2000'], ['5000', '1:5000'], ['custom', 'Другой…']]);
+      const custom = el('input', { type: 'number', min: '1', step: 'any', value: o.custom, style: { width: '90px' } });
+      custom.addEventListener('input', () => { o.custom = +custom.value; upd(); });
+      row('Масштаб', el('div', { style: { display: 'flex', gap: '6px', alignItems: 'center' } }, [scaleSel, el('span', { text: '1:' }), custom]));
+      row('Цвета', sel('color', [['color', 'Цветная (на белом)'], ['mono', 'Чёрно-белая']]));
+      row('Толщина линий', sel('lw', [['0.1', '0,10 мм'], ['0.18', '0,18 мм'], ['0.25', '0,25 мм'], ['0.35', '0,35 мм'], ['0.5', '0,50 мм']]));
+      const info = el('div', { class: 'print-info' });
+      body.append(info, el('div', { class: 'print-hint', text: `Единицы чертежа: ${unit} (меняются внизу справа). Масштаб 1:N означает: 1 мм на бумаге = N мм на местности.` }));
+      const upd = () => {
+        custom.parentElement.querySelectorAll('span, input').forEach((x) => (x.style.display = o.scale === 'custom' ? '' : 'none'));
+        const lay = this.printLayout(o, region || this.printRegion);
+        info.textContent = lay ? `Лист ${lay.pw} × ${lay.ph} мм, масштаб ${lay.scaleText}${lay.clipped ? ' — чертёж не помещается на лист целиком, будет обрезан' : ''}` : 'Нечего печатать';
+        info.classList.toggle('warn', !!(lay && lay.clipped));
+      };
+      upd();
+      // custom buttons: PDF / print / pick window
+      let action = null;
+      const pdfBtn = el('button', { type: 'button', class: 'primary', text: 'Сохранить PDF' });
+      const prnBtn = el('button', { type: 'button', text: 'Печать…' });
+      body.append(el('div', { class: 'print-actions' }, [prnBtn, pdfBtn]));
+      const done = modal({ title: 'Печать и PDF', body, okText: 'Отмена', cancelText: null });
+      const finish = (a) => { action = a; const m = document.querySelector('.modal-back'); if (m) m.remove(); };
+      pdfBtn.addEventListener('click', () => finish('pdf'));
+      prnBtn.addEventListener('click', () => finish('print'));
+      what.addEventListener('change', () => { if (o.what === 'window') finish('pick'); });
+      await Promise.race([done, new Promise((r) => { const t = setInterval(() => { if (action) { clearInterval(t); r(); } }, 50); })]);
+      if (action === 'pick') {
+        toast('Укажите два угла области печати');
+        this.startCmd('printwin');
+        return;
+      }
+      if (action === 'pdf' || action === 'print') this.printRun(o, region || this.printRegion, action);
+    }
+    /** paper size / scale / view for a print job */
+    printLayout(o, region) {
+      let box;
+      if (o.what === 'view') { const v = this.visibleBox(); box = [v.x1, v.y1, v.x2, v.y2]; }
+      else if (o.what === 'window' && region) box = region;
+      else { const b = this.eng.view_extents(true); if (!b.length) return null; box = b.slice(0, 4); }
+      const w = Math.max(box[2] - box[0], 1e-9), h = Math.max(box[3] - box[1], 1e-9);
+      const sizes = { A4: [210, 297], A3: [297, 420], A2: [420, 594], A1: [594, 841], A0: [841, 1189] };
+      let [a, b] = sizes[o.paper] || sizes.A3;
+      const land = o.orient === 'land' || (o.orient === 'auto' && w >= h);
+      const pw = land ? b : a, ph = land ? a : b;
+      const margin = 10;
+      const aw = pw - 2 * margin, ah = ph - 2 * margin;
+      const unitMm = { 'мм': 1, 'см': 10, 'м': 1000, 'км': 1e6 }[this.unitName()] || 1;
+      let mmPerUnit, scaleText;
+      if (o.scale === 'fit') {
+        mmPerUnit = Math.min(aw / w, ah / h);
+        const N = unitMm / mmPerUnit;
+        scaleText = `≈ 1:${N >= 10 ? Math.round(N) : +N.toPrecision(3)} (вписано)`;
+      } else {
+        const N = o.scale === 'custom' ? Math.max(1e-6, +o.custom || 1) : +o.scale;
+        mmPerUnit = unitMm / N;
+        scaleText = `1:${N}`;
+      }
+      const clipped = w * mmPerUnit > aw + 0.5 || h * mmPerUnit > ah + 0.5;
+      return { pw, ph, mmPerUnit, scaleText, clipped, cx: (box[0] + box[2]) / 2, cy: (box[1] + box[3]) / 2, margin };
+    }
+    async printRun(o, region, action) {
+      const lay = this.printLayout(o, region);
+      if (!lay) { toast('Нечего печатать'); return; }
+      const busy = toast('Готовлю лист к печати…', null, 60000);
+      await new Promise((r) => setTimeout(r, 30));
+      try {
+        // resolution: as high as the canvas allows for the paper size
+        const area = lay.pw * lay.ph;
+        const dpi = Math.min(300, Math.floor(Math.sqrt(40e6 / (area / 645.16))));
+        const pxmm = dpi / 25.4;
+        const Wpx = Math.round(lay.pw * pxmm), Hpx = Math.round(lay.ph * pxmm);
+        const geo = document.createElement('canvas');
+        geo.width = Wpx; geo.height = Hpx;
+        const pv = new Canvas2DView(geo);
+        pv.dpr = 1;
+        if (this.gl instanceof Canvas2DView) pv.sets = this.gl.sets;
+        else this.rebuild(false, pv);
+        const th = o.color === 'mono' ? { ...makeTheme('#ffffff'), fg: '#000000', light: true } : makeTheme('#ffffff');
+        const mode = o.color === 'mono' ? 3 : 1;
+        const view = { cx: lay.cx, cy: lay.cy, s: lay.mmPerUnit * pxmm, W: Wpx, H: Hpx };
+        const linePx = Math.max(1, parseFloat(o.lw) * pxmm);
+        pv.draw(view, this.origin, this.layerByIndex || [], hexRgb(th.fg), null, mode, { linePx });
+        // texts and red pencil marks through the normal code with a temporary view
+        const txt = document.createElement('canvas');
+        txt.width = Wpx; txt.height = Hpx;
+        const saved = { textCanvas: this.textCanvas, view: this.view, W: this.W, H: this.H, dpr: this.dpr };
+        Object.assign(this, { textCanvas: txt, view: { cx: lay.cx, cy: lay.cy, s: view.s }, W: Wpx, H: Hpx, dpr: 1 });
+        try { this.drawTexts(th); } finally { Object.assign(this, saved); }
+        const ctx = geo.getContext('2d');
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.drawImage(txt, 0, 0);
+        if (this.ink && this.ink.length) {
+          ctx.setTransform(view.s, 0, 0, -view.s, Wpx / 2 - lay.cx * view.s, Hpx / 2 + lay.cy * view.s);
+          ctx.strokeStyle = INK_RED; ctx.lineWidth = (0.5 * pxmm) / view.s; ctx.lineCap = 'round';
+          ctx.beginPath();
+          for (let i = 0; i < this.ink.length; i += 4) { ctx.moveTo(this.ink[i], this.ink[i + 1]); ctx.lineTo(this.ink[i + 2], this.ink[i + 3]); }
+          ctx.stroke();
+          ctx.setTransform(1, 0, 0, 1, 0, 0);
+        }
+        // white paper behind, clear the margins
+        ctx.globalCompositeOperation = 'destination-over';
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, Wpx, Hpx);
+        ctx.globalCompositeOperation = 'source-over';
+        const m = lay.margin * pxmm;
+        ctx.fillRect(0, 0, Wpx, m); ctx.fillRect(0, Hpx - m, Wpx, m); ctx.fillRect(0, 0, m, Hpx); ctx.fillRect(Wpx - m, 0, m, Hpx);
+        // small caption under the drawing
+        const name = (window.App.active() && window.App.active().name) || 'Чертёж';
+        ctx.fillStyle = '#555'; ctx.font = `${Math.round(2.4 * pxmm)}px Arial`; ctx.textBaseline = 'middle';
+        ctx.fillText(`${name} · масштаб ${lay.scaleText.replace(' (вписано)', '')} · ${new Date().toLocaleDateString('ru')}`, m, Hpx - m / 2);
+        const blob = await new Promise((r) => geo.toBlob(r, 'image/png'));
+        const png = new Uint8Array(await blob.arrayBuffer());
+        busy.remove && busy.remove();
+        const res = await window.api.printRaster({ png, widthMm: lay.pw, heightMm: lay.ph, action, suggestedName: name });
+        if (res && res.ok && action === 'pdf') toast('PDF сохранён: ' + res.path.split(/[\\/]/).pop());
+        else if (res && !res.ok && !res.canceled) toast('Не удалось: ' + res.error, 'error', 7000);
+      } catch (e) {
+        console.error(e);
+        toast('Ошибка печати: ' + e.message, 'error', 7000);
+      } finally {
+        if (busy && busy.remove) busy.remove();
+        this.renderNow();
+      }
     }
 
     // ------------------------------------------------------------ editor API
