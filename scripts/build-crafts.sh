@@ -29,7 +29,11 @@ app=deckcraft
 v=$(ver $app)
 echo "== $app $v (OfficeStudio build)"
 src="$WORK/deckcraft-$v"
-if [ ! -d "$src" ]; then
+if [ ! -d "$src/.git" ]; then
+  rm -rf "$src.tmp"; git clone -q --depth 1 --branch "v$v" https://github.com/storytold/deckcraft "$src.tmp"
+  mkdir -p "$src"; cp -R "$src.tmp/." "$src/"; rm -rf "$src.tmp"
+fi
+if false; then
   git clone -q --depth 1 --branch "v$v" https://github.com/storytold/deckcraft "$src"
 fi
 cp "$ROOT/crafts-patches/deckcraft/web.rs" "$src/apps/deckcraft-web/src/web.rs"
