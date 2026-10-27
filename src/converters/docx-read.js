@@ -283,4 +283,59 @@ async function docxToHtmlNative(buffer) {
   return html || '<p><br></p>';
 }
 
-module.exports = { docxToHtmlNative };
+/** Page setup, headers and footers: { page: {w, h, mt, mb, ml, mr} (mm), header, footer, pnum } */
+async function docxMeta(buffer) {
+  const zip = await JSZip.loadAsync(buffer);
+  const docXml = await zip.file('word/document.xml')?.async('string');
+  if (!docXml) return null;
+  const doc = parse(docXml);
+  const sects = doc.getElementsByTagNameNS(W, 'sectPr');
+  const sect = sects[sects.length - 1];
+  const mm = (tw) => (tw != null && tw !== '' ? Math.round((+tw / 1440) * 25.4 * 10) / 10 : null);
+  const meta = { page: { w: 210, h: 297, mt: 25.4, mb: 25.4, ml: 23.8, mr: 23.8 }, header: '', footer: '', pnum: '' };
+  if (sect) {
+    const sz = kid(sect, 'pgSz'), mar = kid(sect, 'pgMar');
+    if (sz) { meta.page.w = mm(wattr(sz, 'w')) || 210; meta.page.h = mm(wattr(sz, 'h')) || 297; }
+    if (mar) for (const [k, a] of [['mt', 'top'], ['mb', 'bottom'], ['ml', 'left'], ['mr', 'right']]) { const v = mm(wattr(mar, a)); if (v != null) meta.page[k] = Math.abs(v); }
+  }
+  // default header / footer text, with page number fields as {PAGE} / {NUMPAGES}
+  const rels = {};
+  const relsXml = await zip.file('word/_rels/document.xml.rels')?.async('string');
+  if (relsXml) for (const r of Array.from(parse(relsXml).getElementsByTagName('Relationship'))) rels[r.getAttribute('Id')] = r.getAttribute('Target');
+  const partText = async (target) => {
+    const f = zip.file('word/' + target.replace(/^\/?word\//, ''));
+    if (!f) return '';
+    const x = parse(await f.async('string'));
+    const paras = [];
+    for (const p of Array.from(x.getElementsByTagNameNS(W, 'p'))) {
+      let t = '';
+      let inField = null;
+      const walk = (n) => {
+        for (let c = n.firstChild; c; c = c.nextSibling) {
+          if (c.nodeType !== 1) continue;
+          const ln = c.localName;
+          if (ln === 'fldSimple') { const ins = (wattr(c, 'instr') || c.getAttribute('instr') || '').trim().split(/\s+/)[0].toUpperCase(); t += ins === 'PAGE' ? '{PAGE}' : ins === 'NUMPAGES' ? '{NUMPAGES}' : ''; continue; }
+          if (ln === 'fldChar') { const ty = wattr(c, 'fldCharType'); if (ty === 'begin') inField = ''; else if (ty === 'separate') { const ins = (inField || '').trim().split(/\s+/)[0].toUpperCase(); t += ins === 'PAGE' ? '{PAGE}' : ins === 'NUMPAGES' ? '{NUMPAGES}' : ''; inField = 'skip'; } else if (ty === 'end') inField = null; continue; }
+          if (ln === 'instrText') { if (inField !== null && inField !== 'skip') inField += c.textContent; continue; }
+          if (ln === 't') { if (inField === null) t += c.textContent; continue; }
+          if (ln === 'tab') { t += '\t'; continue; }
+          walk(c);
+        }
+      };
+      walk(p);
+      paras.push(t);
+    }
+    return paras.join('\n').trim();
+  };
+  if (sect) {
+    for (const kind of ['header', 'footer']) {
+      const refs = kids(sect, kind + 'Reference');
+      const ref = refs.find((r) => wattr(r, 'type') === 'default') || refs[0];
+      const id = ref && (ref.getAttributeNS(R, 'id') || ref.getAttribute('r:id'));
+      if (id && rels[id]) meta[kind] = await partText(rels[id]);
+    }
+  }
+  return meta;
+}
+
+module.exports = { docxToHtmlNative, docxMeta };

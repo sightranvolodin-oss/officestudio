@@ -99,7 +99,7 @@
       busy();
       if (!r.ok) { toast(r.error, 'error', 7000); continue; }
       const d = r.doc;
-      makeDocTab({ kind: d.kind, name: d.name, path: d.path, savePath: d.savePath, sourceExt: d.sourceExt, warnings: d.warnings, data: d.kind === 'doc' ? { html: d.html } : d.kind === 'cad' ? { dxf: d.dxf } : { model: d.model } });
+      makeDocTab({ kind: d.kind, name: d.name, path: d.path, savePath: d.savePath, sourceExt: d.sourceExt, warnings: d.warnings, data: d.kind === 'doc' ? { html: d.html, doc: d.meta || null } : d.kind === 'cad' ? { dxf: d.dxf } : { model: d.model } });
     }
   }
   function toastBusy(msg, slowMsg) {

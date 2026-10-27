@@ -1267,6 +1267,7 @@
     undo() { if (this.eng && this.eng.undo()) { this.sel.clear(); this.afterEdit(); } }
     redo() { if (this.eng && this.eng.redo()) { this.sel.clear(); this.afterEdit(); } }
     selChanged() {
+      if (this.sel.size !== 1) this.pickedLayer = null;
       this.syncSel();
       this.buildProps();
       this.markSelLayers(true);
@@ -1482,6 +1483,7 @@
       UI.menu(e.clientX, e.clientY, items);
     }
     winSelect(e, p0) {
+      this.pickedLayer = null;
       this.win = { x1: p0.x, y1: p0.y, x2: p0.x, y2: p0.y };
       let moved = false;
       const r = this.over.getBoundingClientRect();
