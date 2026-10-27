@@ -1,7 +1,7 @@
 // DOCX <-> HTML conversion (runs in the Electron main process / Node)
 const mammoth = require('mammoth');
 const HTMLtoDOCX = require('html-to-docx');
-const { docxToHtmlNative } = require('./docx-read');
+const { docxToHtmlNative, docxMeta } = require('./docx-read');
 const JSZip = require('jszip');
 
 const INLINE = '(?:b|strong|i|em|u|s|span|a|sub|sup)';
@@ -18,7 +18,9 @@ const STYLE_MAP = [
 async function docxToHtml(buffer) {
   try {
     const html = await docxToHtmlNative(buffer);
-    return { html, warnings: [] };
+    let meta = null;
+    try { meta = await docxMeta(buffer); } catch {}
+    return { html, warnings: [], meta };
   } catch (e) {
     const fb = await docxToHtmlMammoth(buffer);
     fb.warnings.unshift('Использован упрощённый режим чтения: ' + e.message);
@@ -191,6 +193,23 @@ function prepareHtml(html) {
     .replace(new RegExp(`(</${INLINE}>)\\s+(</?(?:p|li|h\\d|td)\\b)`, 'gi'), '$1$2');
 }
 
+// [[OSPAGE]] / [[OSPAGES]] markers in headers and footers -> PAGE / NUMPAGES fields
+async function fixPageFields(buffer) {
+  const zip = await JSZip.loadAsync(buffer);
+  let changed = false;
+  for (const name of Object.keys(zip.files)) {
+    if (!/^word\/(header|footer)\d*\.xml$/.test(name)) continue;
+    let xml = await zip.file(name).async('string');
+    if (!/\[\[OSPAGES?\]\]/.test(xml)) continue;
+    // html-to-docx writes headers with a default namespace (<t>, <r>), the body with w: prefixes
+    const w = /<w:t[ >]/.test(xml) ? 'w:' : '';
+    xml = xml.replace(/\[\[OSPAGE(S?)\]\]/g, (m, s) => `</${w}t></${w}r><${w}fldSimple ${w}instr=" ${s ? 'NUMPAGES' : 'PAGE'} "><${w}r><${w}t>1</${w}t></${w}r></${w}fldSimple><${w}r><${w}t xml:space="preserve">`);
+    zip.file(name, xml);
+    changed = true;
+  }
+  return changed ? zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' }) : buffer;
+}
+
 async function fixParagraphs(buffer) {
   const zip = await JSZip.loadAsync(buffer);
   const xml = await zip.file('word/document.xml').async('string');
@@ -249,9 +268,16 @@ async function embedInks(buffer, inks) {
   return zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' });
 }
 
-async function htmlToDocx(html, meta = {}, inks = []) {
-  const doc = prepareHtml(html);
-  const buffer = await HTMLtoDOCX(doc, null, {
+const tw = (mm) => Math.round((mm / 25.4) * 1440);
+const hfHtml = (text) => (text || '').split('\n').map((l) => `<p>${xmlEsc(l).replace(/\{PAGE\}/g, '[[OSPAGE]]').replace(/\{NUMPAGES\}/g, '[[OSPAGES]]') || '&nbsp;'}</p>`).join('');
+
+async function htmlToDocx(html, meta = {}, inks = [], doc = null) {
+  const d = doc || {};
+  const pg = { w: 210, h: 297, mt: 25.4, mb: 25.4, ml: 23.8, mr: 23.8, ...(d.page || {}) };
+  const header = d.header || '';
+  const footer = d.footer || '';
+  const prepared = prepareHtml(html);
+  const buffer = await HTMLtoDOCX(prepared, header ? hfHtml(header) : null, {
     title: meta.title || 'Документ',
     creator: 'OfficeStudio',
     font: 'Calibri',
@@ -259,11 +285,17 @@ async function htmlToDocx(html, meta = {}, inks = []) {
     table: { row: { cantSplit: true } },
     pageNumber: false,
     lang: 'ru-RU',
-    pageSize: { width: 11906, height: 16838 }, // A4, like the on-screen page
-    margins: { top: 1440, right: 1350, bottom: 1440, left: 1350, header: 720, footer: 720, gutter: 0 },
-  });
+    orientation: pg.w > pg.h ? 'landscape' : 'portrait',
+    pageSize: { width: tw(Math.min(pg.w, pg.h)), height: tw(Math.max(pg.w, pg.h)) },
+    margins: { top: tw(pg.mt), right: tw(pg.mr), bottom: tw(pg.mb), left: tw(pg.ml), header: 720, footer: 720, gutter: 0 },
+    header: !!header,
+    headerType: 'default',
+    footer: !!footer,
+    footerType: 'default',
+  }, footer ? hfHtml(footer) : null);
   let out = Buffer.isBuffer(buffer) ? buffer : Buffer.from(await buffer.arrayBuffer());
   out = await fixParagraphs(out);
+  if (header || footer) out = await fixPageFields(out);
   return inks && inks.length ? embedInks(out, inks) : out;
 }
 

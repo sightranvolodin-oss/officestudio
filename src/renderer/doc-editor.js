@@ -3,8 +3,9 @@
   const { el, btn, group, select, colorButton, toast, modal, esc } = UI;
   const FONTS = ['Calibri', 'Arial', 'Times New Roman', 'Georgia', 'Verdana', 'Tahoma', 'Segoe UI', 'Courier New', 'Cambria', 'Trebuchet MS'];
   const SIZES = [8, 9, 10, 10.5, 11, 12, 14, 16, 18, 20, 24, 28, 32, 36, 48, 72];
-  const PAGE_INNER = 614; // px usable width of the A4 page
-  const PAGE_W = 794, PAGE_PAD = 90; // A4 width and side margins in px (96 dpi)
+  const MMPX = 96 / 25.4; // px per millimetre
+  const SHEET_GAP = 24; // px between sheets on screen
+  const DEFAULT_PAGE = { w: 210, h: 297, mt: 20, mb: 20, ml: 30, mr: 15 }; // A4, Russian default margins (mm)
   const CM = 96 / 2.54; // px per centimetre
   const setStyleAttr = (e, v) => (v == null ? e.removeAttribute('style') : e.setAttribute('style', v));
 
@@ -52,10 +53,10 @@
       if (!ed.page.isConnected || !this.el.offsetParent) return;
       this.place();
       const z = ed.zoom;
-      const w = PAGE_W * z, h = 22;
+      const G = ed.geom, w = G.W * z, h = 22;
       const d = window.devicePixelRatio || 1;
-      if (this.canvas.width !== Math.round(w * d) || this.lastZ !== z) {
-        this.lastZ = z;
+      if (this.canvas.width !== Math.round(w * d) || this.lastZ !== z || this.lastG !== G.key) {
+        this.lastZ = z; this.lastG = G.key;
         this.canvas.width = Math.round(w * d); this.canvas.height = Math.round(h * d);
         this.canvas.style.width = w + 'px'; this.canvas.style.height = h + 'px';
         this.draw(z, w, h, d);
@@ -67,12 +68,12 @@
       this.placeMarkers();
     }
     placeMarkers() {
-      const z = this.ed.zoom, v = this.vals;
-      const x = (px) => (PAGE_PAD + px) * z;
+      const z = this.ed.zoom, v = this.vals, G = this.ed.geom;
+      const x = (px) => (G.ml + px) * z;
       this.mFirst.style.left = x(v.first) + 'px';
       this.mHang.style.left = x(v.left) + 'px';
       this.mLeft.style.left = x(v.left) + 'px';
-      this.mRight.style.left = (PAGE_W - PAGE_PAD - v.right) * z + 'px';
+      this.mRight.style.left = (G.W - G.mr - v.right) * z + 'px';
     }
     draw(z, w, h, d) {
       const ctx = this.canvas.getContext('2d');
@@ -82,15 +83,16 @@
       ctx.fillStyle = '#d7dbe2';
       ctx.fillRect(0, 3, w, h - 6);
       ctx.fillStyle = '#ffffff';
-      ctx.fillRect(PAGE_PAD * z, 3, (PAGE_W - 2 * PAGE_PAD) * z, h - 6);
+      const G = this.ed.geom;
+      ctx.fillRect(G.ml * z, 3, (G.W - G.ml - G.mr) * z, h - 6);
       ctx.strokeStyle = '#9aa3b0';
       ctx.fillStyle = '#4a5260';
       ctx.font = '10px Segoe UI, Arial, sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      const zero = PAGE_PAD * z;
+      const zero = G.ml * z;
       ctx.beginPath();
-      for (let k = -Math.floor(PAGE_PAD / (CM / 4)); ; k++) {
+      for (let k = -Math.floor(G.ml / (CM / 4)); ; k++) {
         const px = zero + k * (CM / 4) * z;
         if (px > w) break;
         if (px < 0) continue;
@@ -144,12 +146,13 @@
         }
         this.vals = ed.blockIndents(blocks[0]);
         this.placeMarkers();
-        const pos = kind === 'first' ? this.vals.first : kind === 'right' ? PAGE_W - 2 * PAGE_PAD - this.vals.right : this.vals.left;
+        const G = ed.geom;
+        const pos = kind === 'first' ? this.vals.first : kind === 'right' ? G.W - G.ml - G.mr - this.vals.right : this.vals.left;
         const pr = ed.page.getBoundingClientRect();
-        this.guide.style.left = pr.left - rr.left + (PAGE_PAD + pos) * z + 'px';
+        this.guide.style.left = pr.left - rr.left + (G.ml + pos) * z + 'px';
         const shown = kind === 'right' ? this.vals.right : kind === 'first' ? this.vals.first - this.vals.left : this.vals.left;
         this.tip.textContent = `${{ first: 'Первая строка', hang: 'Выступ', left: 'Слева', right: 'Справа' }[kind]}: ${(shown / CM).toFixed(2).replace('.', ',')} см`;
-        this.tip.style.left = this.track.offsetLeft + (PAGE_PAD + pos) * z + 'px';
+        this.tip.style.left = this.track.offsetLeft + (G.ml + pos) * z + 'px';
         this.tip.style.display = 'block';
       };
       const up = () => {
@@ -178,9 +181,15 @@
       this.textColor = '#c00000';
       this.hlColor = '#ffff00';
 
+      // page setup, header and footer (saved into the .docx section properties)
+      const dm = data.doc || {};
+      this.meta = { page: { ...DEFAULT_PAGE, ...(dm.page || {}) }, header: dm.header || '', footer: dm.footer || '', headerAlign: dm.headerAlign || 'center', footerAlign: dm.footerAlign || 'center' };
+      if (!data.doc && data.html && data.html !== '<p><br></p>') this.meta.page = { w: 210, h: 297, mt: 25.4, mb: 25.4, ml: 23.8, mr: 23.8 };
       this.page = el('div', { class: 'doc-page', contenteditable: 'true', spellcheck: 'true' });
       this.page.innerHTML = this.sanitize(data.html || '<p><br></p>');
-      this.zoomBox = el('div', { class: 'doc-zoom' }, this.page);
+      this.sheets = el('div', { class: 'doc-sheets' });
+      this.zoomBox = el('div', { class: 'doc-zoom' }, [this.sheets, this.page]);
+      this.applyGeom();
       this.scroll = el('div', { class: 'doc-scroll' }, this.zoomBox);
       this.scroll.style.position = 'relative';
 
@@ -203,6 +212,181 @@
       requestAnimationFrame(() => this.loadInkMarkers());
       this.updateCounts();
       setTimeout(() => this.focusStart(), 30);
+      // pagination after layout and whenever content or images change
+      this.page.addEventListener('load', () => this.schedulePaginate(), true);
+      requestAnimationFrame(() => this.paginate());
+    }
+
+    // ------------------------------------------------------------ pages
+    /** page geometry in px from the page setup (mm) */
+    applyGeom() {
+      const p = this.meta.page;
+      const g = { W: Math.round(p.w * MMPX), H: Math.round(p.h * MMPX), mt: p.mt * MMPX, mb: p.mb * MMPX, ml: p.ml * MMPX, mr: p.mr * MMPX };
+      g.key = [g.W, g.H, g.mt, g.mb, g.ml, g.mr].join(',');
+      this.geom = g;
+      const st = this.page.style;
+      st.width = g.W + 'px';
+      st.padding = `${g.mt}px ${g.mr}px ${g.mb}px ${g.ml}px`;
+      this.zoomBox.style.width = g.W + 'px';
+      if (this.inkLayer) this.inkLayer.setAttribute('width', g.W);
+      if (this.ruler) this.ruler.update();
+    }
+    innerW() { return Math.round(this.geom.W - this.geom.ml - this.geom.mr); }
+    schedulePaginate() { clearTimeout(this.pgT); this.pgT = setTimeout(() => this.paginate(), 120); }
+    /** flow blocks for pagination: top-level blocks, list items, table rows */
+    flowBlocks() {
+      const out = [];
+      const walk = (parent) => {
+        for (const c of parent.children) {
+          if (c.tagName === 'UL' || c.tagName === 'OL') walk(c);
+          else if (c.tagName === 'TABLE') { for (const tr of c.rows) out.push(tr); }
+          else out.push(c);
+        }
+      };
+      walk(this.page);
+      return out;
+    }
+    /**
+     * Word-like pages: a block that would cross the bottom margin is pushed to the next page with a
+     * temporary margin (never saved). Table rows are pushed with cell padding.
+     */
+    paginate() {
+      if (!this.page.isConnected) return;
+      const g = this.geom, z = this.zoom;
+      const contentH = g.H - g.mt - g.mb, pitch = g.H + SHEET_GAP;
+      // reset previous pushes
+      this.page.querySelectorAll('.pg-push').forEach((b) => { b.classList.remove('pg-push'); b.style.removeProperty('--pg'); if (!b.getAttribute('style')) b.removeAttribute('style'); if (!b.className) b.removeAttribute('class'); });
+      const top0 = () => this.page.getBoundingClientRect().top / z + g.mt;
+      const t0 = top0();
+      let forceNext = false;
+      const pages = []; // page index of every heading (for the table of contents)
+      for (const b of this.flowBlocks()) {
+        if (b.classList.contains('page-break')) { forceNext = true; continue; }
+        const r = b.getBoundingClientRect();
+        let y = r.top / z - t0;
+        const h = r.height / z;
+        const pi = Math.floor(y / pitch);
+        const local = y - pi * pitch;
+        let target = null;
+        if (forceNext && local > 0.5) target = (pi + 1) * pitch;
+        else if (local >= contentH - 0.5) target = (pi + 1) * pitch;
+        else if (local + h > contentH + 0.5 && h <= contentH && local > 0.5) target = (pi + 1) * pitch;
+        forceNext = false;
+        if (target != null) {
+          // margins collapse with the previous block, so measure and correct once
+          let push = target - y;
+          for (let k = 0; k < 2 && Math.abs(push) > 0.5; k++) {
+            const cur = parseFloat(b.style.getPropertyValue('--pg')) || 0;
+            b.classList.add('pg-push');
+            b.style.setProperty('--pg', Math.max(0, cur + push) + 'px');
+            y = b.getBoundingClientRect().top / z - t0;
+            push = target - y;
+          }
+        }
+        if (/^H[1-3]$/.test(b.tagName)) pages.push([b, Math.floor((b.getBoundingClientRect().top / z - t0) / pitch) + 1]);
+      }
+      const bottom = this.page.scrollHeight;
+      const n = Math.max(1, Math.ceil((bottom - g.mb + 1) / pitch));
+      this.pageCount = n;
+      this.page.style.minHeight = n * pitch - SHEET_GAP + 'px';
+      this.renderSheets(n);
+      this.headingPages = pages;
+      this.refreshToc();
+      if (this.countEl) this.updateCounts();
+    }
+    renderSheets(n) {
+      const g = this.geom, m = this.meta;
+      const fill = (t, i) => (t || '').replace(/\{PAGE\}/g, String(i + 1)).replace(/\{NUMPAGES\}/g, String(n));
+      this.sheets.innerHTML = '';
+      for (let i = 0; i < n; i++) {
+        const sh = el('div', { class: 'doc-sheet', style: { top: i * (g.H + SHEET_GAP) + 'px', height: g.H + 'px', width: g.W + 'px' } });
+        if (m.header) sh.append(el('div', { class: 'doc-hf head', title: 'Верхний колонтитул — двойной щелчок, чтобы изменить', style: { left: g.ml + 'px', right: g.mr + 'px', top: Math.max(8, g.mt * 0.38) + 'px', textAlign: m.headerAlign }, text: fill(m.header, i) }));
+        if (m.footer) sh.append(el('div', { class: 'doc-hf foot', title: 'Нижний колонтитул — двойной щелчок, чтобы изменить', style: { left: g.ml + 'px', right: g.mr + 'px', bottom: Math.max(8, g.mb * 0.38) + 'px', textAlign: m.footerAlign }, text: fill(m.footer, i) }));
+        this.sheets.append(sh);
+      }
+    }
+    async pageSetupDialog() {
+      const p = this.meta.page;
+      const sizes = { A4: [210, 297], A3: [297, 420], A5: [148, 210], Letter: [215.9, 279.4], Legal: [215.9, 355.6] };
+      const short = Math.min(p.w, p.h), long = Math.max(p.w, p.h);
+      const cur = Object.keys(sizes).find((k) => Math.abs(sizes[k][0] - short) < 1 && Math.abs(sizes[k][1] - long) < 1) || 'A4';
+      const r = await modal({
+        title: 'Параметры страницы',
+        fields: [
+          { name: 'size', label: 'Размер бумаги', type: 'select', options: [['A4', 'A4 (210 × 297 мм)'], ['A3', 'A3 (297 × 420 мм)'], ['A5', 'A5 (148 × 210 мм)'], ['Letter', 'Letter (216 × 279 мм)'], ['Legal', 'Legal (216 × 356 мм)']], value: cur },
+          { name: 'orient', label: 'Ориентация', type: 'select', options: [['port', 'Книжная'], ['land', 'Альбомная']], value: p.w > p.h ? 'land' : 'port' },
+          { name: 'mt', label: 'Поле сверху, мм', type: 'number', value: +p.mt.toFixed(1), min: 0, max: 100 },
+          { name: 'mb', label: 'Поле снизу, мм', type: 'number', value: +p.mb.toFixed(1), min: 0, max: 100 },
+          { name: 'ml', label: 'Поле слева, мм', type: 'number', value: +p.ml.toFixed(1), min: 0, max: 100 },
+          { name: 'mr', label: 'Поле справа, мм', type: 'number', value: +p.mr.toFixed(1), min: 0, max: 100 },
+        ],
+        okText: 'Применить',
+      });
+      if (!r) return;
+      const [a, b] = sizes[r.size] || sizes.A4;
+      const land = r.orient === 'land';
+      const num = (v, d) => (isFinite(v) && v >= 0 ? v : d);
+      this.meta.page = { w: land ? b : a, h: land ? a : b, mt: num(r.mt, p.mt), mb: num(r.mb, p.mb), ml: num(r.ml, p.ml), mr: num(r.mr, p.mr) };
+      this.applyGeom();
+      this.paginate();
+      this.onDirty();
+    }
+    async headerFooterDialog(focus) {
+      const m = this.meta;
+      const hint = el('div', { class: 'print-hint', html: 'В тексте можно использовать <b>{PAGE}</b> — номер страницы и <b>{NUMPAGES}</b> — число страниц. Например: «Стр. {PAGE} из {NUMPAGES}».' });
+      const r = await modal({
+        title: 'Колонтитулы',
+        fields: [
+          { name: 'header', label: 'Верхний колонтитул', type: 'textarea', value: m.header },
+          { name: 'headerAlign', label: 'Выравнивание верхнего', type: 'select', options: [['left', 'Слева'], ['center', 'По центру'], ['right', 'Справа']], value: m.headerAlign },
+          { name: 'footer', label: 'Нижний колонтитул', type: 'textarea', value: m.footer },
+          { name: 'footerAlign', label: 'Выравнивание нижнего', type: 'select', options: [['left', 'Слева'], ['center', 'По центру'], ['right', 'Справа']], value: m.footerAlign },
+        ],
+        body: hint,
+        okText: 'Применить',
+      });
+      if (!r) return;
+      Object.assign(m, { header: r.header.trim(), footer: r.footer.trim(), headerAlign: r.headerAlign, footerAlign: r.footerAlign });
+      this.renderSheets(this.pageCount || 1);
+      this.onDirty();
+      void focus;
+    }
+    pageNumbersMenu(b) {
+      const set = (where, align) => {
+        const m = this.meta;
+        if (where === 'none') {
+          m.header = m.header.replace(/\s*\{PAGE\}( из \{NUMPAGES\})?/g, '').trim();
+          m.footer = m.footer.replace(/\s*(Стр\. )?\{PAGE\}( из \{NUMPAGES\})?/g, '').trim();
+        } else {
+          const t = align === 'center' ? '{PAGE}' : 'Стр. {PAGE} из {NUMPAGES}';
+          if (where === 'bottom') { m.footer = t; m.footerAlign = align; } else { m.header = t; m.headerAlign = align; }
+        }
+        this.renderSheets(this.pageCount || 1);
+        this.onDirty();
+      };
+      const r = b.getBoundingClientRect();
+      UI.menu(r.left, r.bottom + 4, [
+        { label: 'Внизу по центру', onClick: () => set('bottom', 'center') },
+        { label: 'Внизу справа («Стр. 1 из 5»)', onClick: () => set('bottom', 'right') },
+        { label: 'Вверху справа', onClick: () => set('top', 'right') },
+        '-',
+        { label: 'Колонтитулы…', icon: 'text', onClick: () => this.headerFooterDialog() },
+        { label: 'Убрать номера страниц', icon: 'x', onClick: () => set('none') },
+      ]);
+    }
+    /** table of contents from Заголовок 1–3, with page numbers */
+    insertToc() {
+      this.exec('insertHTML', '<div class="toc" contenteditable="false"></div><p><br></p>');
+      this.paginate();
+      toast('Оглавление вставлено. Номера страниц обновляются сами.');
+    }
+    refreshToc() {
+      const tocs = this.page.querySelectorAll('.toc');
+      if (!tocs.length) return;
+      const items = (this.headingPages || []).filter(([h]) => !h.closest('.toc'));
+      const html = '<div class="toc-title">Оглавление</div>' + (items.length ? items.map(([h, pg], i) => `<div class="toc-e toc-l${h.tagName[1]}" data-i="${i}"><span class="t">${UI.esc(h.textContent.trim() || '—')}</span><span class="d"></span><span class="n">${pg}</span></div>`).join('') : '<div class="toc-empty">Нет заголовков. Сделайте строки «Заголовком 1–3» (список стилей слева на панели).</div>');
+      tocs.forEach((t) => { if (t.innerHTML !== html) t.innerHTML = html; });
+      this.tocTargets = items.map(([h]) => h);
     }
 
     focusStart() {
@@ -259,7 +443,12 @@
           (this.eraserBtn = btn({ icon: 'eraser', title: 'Ластик для пометок', keepFocus: false, onClick: () => this.setInkMode(this.inkMode === 'eraser' ? null : 'eraser') })),
           btn({ icon: 'inkClear', title: 'Удалить все пометки', keepFocus: false, onClick: () => this.clearInk() }),
         ),
-        group(btn({ icon: 'search', title: 'Найти и заменить (Ctrl+F)', onClick: () => this.find() }), btn({ icon: 'pdf', title: 'Экспорт в PDF (Ctrl+E)', onClick: () => this.exportMenu() })),
+        group(
+          btn({ icon: 'fileText', label: 'Страница', title: 'Размер, ориентация и поля страницы', onClick: () => this.pageSetupDialog() }),
+          btn({ icon: 'listOl', label: '№ стр.', title: 'Номера страниц и колонтитулы', onClick: (e, b) => this.pageNumbersMenu(b) }),
+          btn({ icon: 'listUl', label: 'Оглавление', title: 'Вставить оглавление по заголовкам', onClick: () => this.insertToc() }),
+        ),
+        group(btn({ icon: 'search', title: 'Найти и заменить (Ctrl+F)', onClick: () => this.find() }), btn({ icon: 'pdf', label: 'PDF', title: 'Экспорт в PDF (Ctrl+E)', onClick: () => this.exportMenu() }), btn({ icon: 'download', label: 'Печать', title: 'Предпросмотр и печать (Ctrl+P)', onClick: () => this.printPreview() })),
       ]);
     }
 
@@ -343,7 +532,7 @@
       const img = new Image();
       img.onload = () => {
         let w = img.naturalWidth, h = img.naturalHeight;
-        if (w > PAGE_INNER) { h = Math.round((h * PAGE_INNER) / w); w = PAGE_INNER; }
+        if (w > this.innerW()) { h = Math.round((h * this.innerW()) / w); w = this.innerW(); }
         this.exec('insertHTML', `<img src="${src}" width="${w}" height="${h}">`);
       };
       img.src = src;
@@ -417,7 +606,7 @@
       const startX = e.clientX, w0 = img.getBoundingClientRect().width / this.zoom;
       const ratio = (img.naturalHeight || img.height) / (img.naturalWidth || img.width) || 1;
       const move = (ev) => {
-        const w = Math.max(24, Math.min(PAGE_INNER, Math.round(w0 + (ev.clientX - startX) / this.zoom)));
+        const w = Math.max(24, Math.min(this.innerW(), Math.round(w0 + (ev.clientX - startX) / this.zoom)));
         img.setAttribute('width', w);
         img.setAttribute('height', Math.round(w * ratio));
         img.style.width = ''; img.style.height = '';
@@ -545,7 +734,12 @@
     // ------------------------------------------------------------ events
     bind() {
       const p = this.page;
-      p.addEventListener('input', () => { this.editSeq++; this.changed(); });
+      p.addEventListener('input', () => { this.editSeq++; this.changed(); this.schedulePaginate(); });
+      p.addEventListener('click', (e) => {
+        const te = e.target.closest('.toc-e');
+        if (te && this.tocTargets && this.tocTargets[+te.dataset.i]) this.tocTargets[+te.dataset.i].scrollIntoView({ block: 'start', behavior: 'smooth' });
+      });
+      this.sheets.addEventListener('dblclick', (e) => { if (e.target.closest('.doc-hf')) this.headerFooterDialog(); });
       p.addEventListener('paste', (e) => {
         const items = Array.from(e.clipboardData.items || []);
         const imgItem = items.find((i) => i.type.startsWith('image/'));
@@ -622,8 +816,8 @@
         if (e.target.tagName === 'IMG') {
           const img = e.target;
           items.push('-',
-            { label: 'Исходный размер', icon: 'image', onClick: () => { const w = Math.min(PAGE_INNER, img.naturalWidth); img.setAttribute('width', w); img.setAttribute('height', Math.round((w * img.naturalHeight) / img.naturalWidth)); this.selectImage(img); this.changed(); } },
-            { label: 'По ширине страницы', icon: 'fit', onClick: () => { img.setAttribute('width', PAGE_INNER); img.setAttribute('height', Math.round((PAGE_INNER * img.naturalHeight) / img.naturalWidth)); this.selectImage(img); this.changed(); } },
+            { label: 'Исходный размер', icon: 'image', onClick: () => { const w = Math.min(this.innerW(), img.naturalWidth); img.setAttribute('width', w); img.setAttribute('height', Math.round((w * img.naturalHeight) / img.naturalWidth)); this.selectImage(img); this.changed(); } },
+            { label: 'По ширине страницы', icon: 'fit', onClick: () => { img.setAttribute('width', this.innerW()); img.setAttribute('height', Math.round((this.innerW() * img.naturalHeight) / img.naturalWidth)); this.selectImage(img); this.changed(); } },
             { label: 'Удалить рисунок', icon: 'trash', onClick: () => { img.remove(); this.selectImage(null); this.changed(); } });
         }
         UI.menu(e.clientX, e.clientY, items);
@@ -698,7 +892,7 @@
         const meta = { x: png.x, dy: png.y - g.top, color: st.color, width: st.width, pts: st.pts.map(([x, y]) => [+(x - png.x).toFixed(2), +(y - png.y).toFixed(2)]) };
         const cb = clone.querySelector(`[data-osb="${idx}"]`);
         cb.insertBefore(document.createTextNode(token), cb.firstChild);
-        inks.push({ token, png: png.dataUrl, xMargin: png.x - 90, dy: png.y - g.top, w: png.w, h: png.h, meta: JSON.stringify(meta) });
+        inks.push({ token, png: png.dataUrl, xMargin: png.x - this.geom.ml, dy: png.y - g.top, w: png.w, h: png.h, meta: JSON.stringify(meta) });
         // inline SVG version for PDF / HTML
         const ib = inline.querySelector(`[data-osb="${idx}"]`);
         const svg = `<span style="position:relative;display:inline-block;width:0;height:0;vertical-align:top"><svg xmlns="http://www.w3.org/2000/svg" width="${png.w}" height="${png.h}" style="position:absolute;left:${png.x - g.left}px;top:${png.y - g.top}px;overflow:visible;pointer-events:none"><path d="${Ink.pathD(meta.pts)}" fill="none" stroke="${st.color}" stroke-width="${st.width}" stroke-linecap="round" stroke-linejoin="round"/></svg></span>`;
@@ -716,16 +910,16 @@
     // ------------------------------------------------------------ red pencil
     blockGeo(b) {
       const pr = this.page.getBoundingClientRect(), r = b.getBoundingClientRect();
-      const f = pr.width / 794 || 1;
+      const f = pr.width / this.geom.W || 1;
       return { top: (r.top - pr.top) / f, left: (r.left - pr.left) / f };
     }
     toPage(ev) {
       const r = this.page.getBoundingClientRect();
-      const f = r.width / 794 || 1;
+      const f = r.width / this.geom.W || 1;
       return [(ev.clientX - r.left) / f, (ev.clientY - r.top) / f];
     }
     renderInk(live) {
-      this.inkLayer.setAttribute('width', 794);
+      this.inkLayer.setAttribute('width', this.geom.W);
       this.inkLayer.setAttribute('height', this.page.offsetHeight);
       const paths = this.inks.map((st) => `<path d="${Ink.pathD(st.pts)}" stroke="${st.color}" stroke-width="${st.width}"/>`);
       if (live) paths.push(`<path d="${Ink.pathD(live)}" stroke="${Ink.COLOR}" stroke-width="3"/>`);
@@ -849,8 +1043,8 @@
       const pr = this.page.getBoundingClientRect(), br = b.getBoundingClientRect();
       const z = this.zoom;
       const cs = getComputedStyle(b);
-      const left = (br.left - pr.left) / z - PAGE_PAD;
-      const right = (pr.right - br.right) / z - PAGE_PAD;
+      const left = (br.left - pr.left) / z - this.geom.ml;
+      const right = (pr.right - br.right) / z - this.geom.mr;
       const ti = parseFloat(cs.textIndent) || 0;
       return { left, right, first: left + ti, ti };
     }

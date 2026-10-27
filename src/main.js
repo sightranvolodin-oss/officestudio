@@ -84,7 +84,7 @@ async function serialize(kind, data, targetPath) {
     if (ext === '.html' || ext === '.htm') {
       return Buffer.from(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${escHtml(path.basename(targetPath))}</title></head><body>${data.htmlInline || data.html}</body></html>`, 'utf8');
     }
-    return htmlToDocx(data.html, { title: path.basename(targetPath, ext) }, data.inks || []);
+    return htmlToDocx(data.html, { title: path.basename(targetPath, ext) }, data.inks || [], data.doc || null);
   }
   if (kind === 'slides') return modelToPptx({ ...data.model, title: path.basename(targetPath, ext) });
   if (kind === 'cad') return Buffer.from(data.dxf);
