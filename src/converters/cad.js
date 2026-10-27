@@ -44,7 +44,7 @@ function nativeConverter() {
 }
 
 /** Runs dwg2dxf in a temporary folder with plain ASCII file names (user paths may contain Cyrillic). */
-function dwgToDxfNative(exe, srcPath) {
+function dwgToDxfNative(exe, srcPath, compact = true) {
   return new Promise((resolve, reject) => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'osdwg-'));
     const cleanup = () => { try { fs.rmSync(dir, { recursive: true, force: true }); } catch {} };
@@ -63,7 +63,7 @@ function dwgToDxfNative(exe, srcPath) {
       let ok = false;
       try { ok = fs.statSync(out).size > 100; } catch {}
       if (!ok) { cleanup(); return reject(new Error(`dwg2dxf: код ${code}. ${err.trim().split('\n').slice(-2).join(' ')}`)); }
-      try { resolve(compactDxf(out)); } catch (e) { reject(e); } finally { cleanup(); }
+      try { resolve(compact ? compactDxf(out) : fs.readFileSync(out)); } catch (e) { reject(e); } finally { cleanup(); }
     });
   });
 }
@@ -162,6 +162,53 @@ function compactDxf(file) {
   return out.subarray(0, o);
 }
 
+/**
+ * DXF text as valid UTF-8. LibreDWG writes R2007+ text as UTF-8 but some strings (old xdata,
+ * proxy text) stay in the drawing's code page; a reader that sees one invalid byte would then decode
+ * the whole file in that code page and garble every Cyrillic name. Lines that are not UTF-8 are
+ * converted from the code page named in $DWGCODEPAGE (Windows-1251 when it names none).
+ */
+function dxfToUtf8(buf) {
+  const { isUtf8 } = require('buffer');
+  if (!isUtf8 || isUtf8(buf)) return buf;
+  const head = buf.subarray(0, Math.min(buf.length, 200000)).toString('latin1');
+  const cp = /\$DWGCODEPAGE\s*\r?\n\s*3\s*\r?\n\s*(\S+)/.exec(head);
+  const m = cp && /(?:ANSI|DOS)_?(\d+)/i.exec(cp[1]);
+  let dec;
+  try { dec = new TextDecoder(m ? (/DOS/i.test(cp[1]) ? 'ibm' + m[1] : 'windows-' + m[1]) : 'windows-1251'); } catch { dec = new TextDecoder('windows-1251'); }
+  const parts = [];
+  let start = 0;
+  for (let i = 0; i <= buf.length; i++) {
+    if (i === buf.length || buf[i] === 10) {
+      const line = buf.subarray(start, i);
+      let ascii = true;
+      for (let k = 0; k < line.length; k++) if (line[k] > 127) { ascii = false; break; }
+      parts.push(ascii || isUtf8(line) ? line : Buffer.from(dec.decode(line), 'utf8'));
+      if (i < buf.length) parts.push(Buffer.from([10]));
+      start = i + 1;
+    }
+  }
+  return Buffer.concat(parts);
+}
+
+/** Full (not compacted) UTF-8 DXF for a .dwg or .dxf file — for CADCraft, which reads everything */
+async function cadFileToFullDxf(buffer, filePath) {
+  const ext = path.extname(filePath || '').toLowerCase();
+  if (ext === '.dwg' || buffer.slice(0, 4).toString('latin1') === 'AC10') {
+    const exe = nativeConverter();
+    let dxf = null;
+    if (exe && filePath) {
+      try { dxf = await dwgToDxfNative(exe, filePath, false); } catch (e) { console.warn('native dwg2dxf failed, falling back to WebAssembly:', e.message); }
+    }
+    if (!dxf) {
+      try { dxf = await dwgToDxfWasm(buffer); } catch (e) { throw new Error(`Не удалось прочитать DWG: ${e && e.message ? e.message : e}`); }
+    }
+    return dxfToUtf8(dxf);
+  }
+  if (buffer.slice(0, 18).toString('latin1') === 'AutoCAD Binary DXF') return buffer;
+  return dxfToUtf8(buffer);
+}
+
 /** Returns ASCII DXF bytes for a .dwg or .dxf file */
 async function cadFileToDxf(buffer, filePath) {
   const ext = path.extname(filePath || '').toLowerCase();
@@ -184,4 +231,4 @@ async function cadFileToDxf(buffer, filePath) {
   return buffer;
 }
 
-module.exports = { cadFileToDxf, compactDxf, nativeConverter };
+module.exports = { cadFileToDxf, cadFileToFullDxf, dxfToUtf8, compactDxf, nativeConverter };

@@ -55,6 +55,13 @@
           "filter": [
             "**/*"
           ]
+        },
+        {
+          "from": "crafts",
+          "to": "crafts",
+          "filter": [
+            "**/*"
+          ]
         }
       ]
     },
@@ -111,5 +118,11 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/sightranvolodin-oss/officestudio.git"
+  },
+  "crafts": {
+    "wordcraft": "0.11.0",
+    "gridcraft": "0.12.1",
+    "deckcraft": "0.11.1",
+    "cadcraft": "0.13.0"
   }
 }

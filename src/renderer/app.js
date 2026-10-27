@@ -46,6 +46,7 @@
     t.tabEl.scrollIntoView({ block: 'nearest', inline: 'nearest' });
     if (t.home) refreshRecent();
     if (t.editor && t.editor.onActivate) t.editor.onActivate();
+    window.api.setMenuMode(t.craft ? 'craft' : 'classic');
     window.api.setTitle(t.home ? 'OfficeStudio' : `${t.name}${t.dirty ? ' •' : ''} — OfficeStudio`);
   }
   async function closeTab(t) {
@@ -65,6 +66,38 @@
     return true;
   }
 
+  // ---------------------------------------------------------------- editors: embedded (Craft) or classic
+  let settings = { editors: 'craft', crafts: {} };
+  const settingsReady = window.api.settingsGet().then((s) => { settings = s; });
+  const useCraft = (kind) => settings.editors !== 'classic' && settings.crafts && settings.crafts[kind];
+
+  function makeCraftTab({ kind, name, path, savePath, sourceExt, bytes, sendName }) {
+    const t = { kind, name, path: savePath, openedFrom: path, sourceExt, dirty: false, craft: true, view: el('div') };
+    t.setDirty = (v) => {
+      if (t.dirty === v) return;
+      t.dirty = v;
+      renderTab(t);
+      if (active === t) window.api.setTitle(`${t.name}${t.dirty ? ' •' : ''} — OfficeStudio`);
+    };
+    addTab(t);
+    t.editor = new window.CraftEditor(t.view, { bytes, sendName }, {
+      tab: t,
+      kind,
+      onDirty: (v) => t.setDirty(v),
+      onSaved: () => { renderTab(t); if (active === t) window.api.setTitle(`${t.name} — OfficeStudio`); },
+      onFail: async (reason) => {
+        // no WebGL2 / the editor did not start: the classic editor opens the same file
+        console.warn('embedded editor failed:', reason);
+        t.dirty = false;
+        await closeTab(t);
+        toast('Встроенный редактор не запустился на этом компьютере — файл открыт в классическом редакторе OfficeStudio.', 'error', 8000);
+        if (path) openPaths([path], { classic: true });
+        else newFile(kind, { classic: true });
+      },
+    });
+    return t;
+  }
+
   function makeDocTab({ kind, name, path, savePath, data, sourceExt, warnings }) {
     const t = { kind, name, path: savePath, openedFrom: path, sourceExt, dirty: false, view: el('div') };
     t.setDirty = (v) => {
@@ -82,18 +115,34 @@
     return t;
   }
 
-  function newFile(kind) {
+  async function newFile(kind, { classic = false } = {}) {
+    await settingsReady;
     counter[kind]++;
     const name = `${KIND[kind].newName}${counter[kind] > 1 ? ' ' + counter[kind] : ''}`;
+    if (!classic && useCraft(kind)) return makeCraftTab({ kind, name });
     const data = kind === 'doc' ? { html: '<p><br></p>' } : kind === 'slides' ? { model: null } : { model: null };
     makeDocTab({ kind, name, data });
   }
 
-  async function openPaths(paths) {
+  const CRAFT_ONLY = /\.(doc|docm|dotx|odt|rtf|xlsb|ods|xltx|potx|ppsx)$/i;
+  const KIND_OF = (f) => (/\.(docx?|docm|dotx|odt|rtf|txt|md|html?)$/i.test(f) ? 'doc' : /\.(xlsx|xlsm|xlsb|xltx|ods|csv)$/i.test(f) ? 'sheet' : /\.(pptx|potx|ppsx)$/i.test(f) ? 'slides' : /\.(dwg|dxf)$/i.test(f) ? 'cad' : null);
+  async function openPaths(paths, { classic = false } = {}) {
+    await settingsReady;
     for (const p of paths) {
       const existing = tabs.find((t) => t.path === p || t.openedFrom === p);
       if (existing) { activate(existing); continue; }
       const fname = p.split(/[\\/]/).pop();
+      const kind = KIND_OF(fname);
+      if (kind && !classic && useCraft(kind)) {
+        const busy = toastBusy(`Открываю ${fname}…`, kind === 'cad' ? `Открываю ${fname}… Большой чертёж — это может занять до минуты.` : null);
+        const r = await window.api.craftOpen(p);
+        busy();
+        if (!r.ok) { toast(r.error, 'error', 7000); continue; }
+        const d = r.doc;
+        makeCraftTab({ kind: d.kind, name: d.name, path: d.path, savePath: d.savePath, sourceExt: d.sourceExt, bytes: d.bytes, sendName: d.sendName });
+        continue;
+      }
+      if (CRAFT_ONLY.test(fname)) { toast(`Файлы ${fname.split('.').pop().toUpperCase()} открываются во встроенных редакторах (Главная → Редакторы).`, 'error', 7000); continue; }
       const busy = toastBusy(`Открываю ${fname}…`, /\.(dwg|dxf)$/i.test(fname) ? `Открываю ${fname}… Большой чертёж — это может занять до минуты.` : null);
       const r = await window.api.openFile(p);
       busy();
@@ -116,6 +165,7 @@
   async function save(t, saveAs) {
     t = t || active;
     if (!t || t.home) return false;
+    if (t.craft) return t.editor.save(saveAs);
     const data = t.editor.getData();
     const suggestedName = t.name.replace(/\.(dwg|txt|md|htm)$/i, '');
     const busy = toastBusy('Сохраняю…');
@@ -155,7 +205,9 @@
     window.api.updateGet().then((s) => { ver.textContent = 'Версия ' + s.current; });
     const chk = el('button', { text: 'Проверить обновления' });
     chk.addEventListener('click', () => Updates.check(true));
-    wrap.append(el('div', { class: 'home-version' }, [ver, chk]));
+    const edBtn = el('button', { text: 'Редакторы…' });
+    edBtn.addEventListener('click', editorsDialog);
+    wrap.append(el('div', { class: 'home-version' }, [ver, chk, edBtn]));
     const grid = el('div', { class: 'create-grid' });
     const cards = [
       ['doc', 'Новый документ', 'Текст, таблицы, картинки → .docx'],
@@ -177,6 +229,19 @@
     wrap.append(el('div', { class: 'section-title' }, [el('span', { text: 'Недавние файлы' }), clear]), recentBox);
     wrap.append(el('div', { class: 'hint-row', html: `<span><kbd>Ctrl</kbd> <kbd>N</kbd> документ</span><span><kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>N</kbd> презентация</span><span><kbd>Ctrl</kbd> <kbd>Alt</kbd> <kbd>T</kbd> таблица</span><span><kbd>Ctrl</kbd> <kbd>Alt</kbd> <kbd>N</kbd> чертёж</span><span><kbd>Ctrl</kbd> <kbd>O</kbd> открыть</span><span><kbd>Ctrl</kbd> <kbd>S</kbd> сохранить</span>` }));
     homeView.append(wrap);
+  }
+  async function editorsDialog() {
+    await settingsReady;
+    const have = Object.values(settings.crafts || {}).some(Boolean);
+    const r = await modal({
+      title: 'Редакторы',
+      body: el('div', { class: 'editors-info', html: `<p><b>Полные</b> — WordCraft, GridCraft, DeckCraft и CADCraft: лента как в Office, рецензирование, сноски, стили, сводные таблицы, анимации, слои и листы чертежей и многое другое. Открытый код (MIT/Apache-2.0), авторы — команда ArtCraft.</p><p><b>Классические</b> — прежние редакторы OfficeStudio: проще, зато с красным карандашом и быстрым просмотром очень больших DWG.</p>${have ? '' : '<p style="color:var(--danger)">Полные редакторы в этой сборке не установлены.</p>'}<p>Уже открытые вкладки остаются как есть; выбор действует для файлов, которые вы откроете дальше.</p>` }),
+      fields: [{ name: 'editors', label: 'Открывать файлы в', type: 'select', options: [['craft', 'Полных редакторах (рекомендуется)'], ['classic', 'Классических редакторах OfficeStudio']], value: settings.editors === 'classic' ? 'classic' : 'craft' }],
+      okText: 'Сохранить',
+    });
+    if (!r) return;
+    settings = await window.api.settingsSet({ editors: r.editors });
+    toast(r.editors === 'classic' ? 'Файлы будут открываться в классических редакторах' : 'Файлы будут открываться в полных редакторах');
   }
   async function refreshRecent() {
     const list = await window.api.getRecent();
@@ -206,11 +271,12 @@
       case 'save': return save(active, false);
       case 'save-as': return save(active, true);
       case 'export': return exportActive();
-      case 'print': if (ed && ed.printPreview) return ed.printPreview(); if (ed && ed.printDialog) return ed.printDialog(); if (ed) toast('Для таблиц и презентаций используйте экспорт в PDF / файл'); return;
+      case 'print': if (active && active.craft) return ed.printPreview(); if (ed && ed.printPreview) return ed.printPreview(); if (ed && ed.printDialog) return ed.printDialog(); if (ed) toast('Для таблиц и презентаций используйте экспорт в PDF / файл'); return;
       case 'close-tab': return closeTab(active);
       case 'undo': if (ed && ed.undo) ed.undo(); else document.execCommand('undo'); return;
       case 'redo': if (ed && ed.redo) ed.redo(); else document.execCommand('redo'); return;
       case 'find': if (ed && ed.find) ed.find(); return;
+      case 'editors': return editorsDialog();
       case 'next-tab': return activate(tabs[(tabs.indexOf(active) + 1) % tabs.length]);
       case 'prev-tab': return activate(tabs[(tabs.indexOf(active) - 1 + tabs.length) % tabs.length]);
       case 'shortcuts': return showShortcuts();
@@ -328,7 +394,7 @@
     document.body.classList.remove('dragging');
     const files = Array.from(e.dataTransfer.files || []);
     if (!files.length) return;
-    const docFiles = files.filter((f) => /\.(docx|pptx|xlsx|xlsm|csv|xls|dwg|dxf|txt|html?|md|doc|ppt)$/i.test(f.name));
+    const docFiles = files.filter((f) => /\.(docx|docm|dotx|odt|rtf|pptx|potx|ppsx|xlsx|xlsm|xlsb|ods|csv|xls|dwg|dxf|txt|html?|md|doc|ppt)$/i.test(f.name));
     if (!docFiles.length) return; // let editors handle dropped images
     e.preventDefault();
     e.stopPropagation();
@@ -353,5 +419,5 @@
   if (!window.OS_SKIP_TERMS) showTerms(true);
   window.api.onOpenPath((p) => openPaths([p]));
   window.api.takePending().then((p) => p.length && openPaths(p));
-  window.App = { openPaths, newFile, save, tabs: () => tabs, active: () => active, updates: () => Updates };
+  window.App = { openPaths, newFile, save, settings: () => settings, tabs: () => tabs, active: () => active, updates: () => Updates };
 })();

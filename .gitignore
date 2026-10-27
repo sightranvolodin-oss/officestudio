@@ -3,3 +3,5 @@ dist/
 cadcore/target/
 *.log
 .DS_Store
+crafts/
+.crafts-work/

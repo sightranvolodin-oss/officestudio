@@ -1,16 +1,56 @@
-const { app, BrowserWindow, ipcMain, dialog, Menu, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, Menu, shell, protocol } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { docxToHtml, htmlToDocx } = require('./converters/docx');
 const { pptxToModel } = require('./converters/pptx-read');
 const { modelToPptx } = require('./converters/pptx-write');
-const { cadFileToDxf } = require('./converters/cad');
+const { cadFileToDxf, cadFileToFullDxf } = require('./converters/cad');
 const { setupUpdater } = require('./updater');
 const { xlsxToModel, modelToXlsx, parseCsv, modelToCsv } = require('./converters/xlsx');
 
 let win = null;
 let forceQuit = false;
 const pendingOpen = [];
+
+// ------------------------------------------------------------------ app files over os://app/
+// The window and the embedded editors (WordCraft, GridCraft, DeckCraft, CADCraft — web builds,
+// MIT OR Apache-2.0, github.com/storytold) are served from one secure origin, so the editors can
+// talk to OfficeStudio through postMessage and use WebGPU, the clipboard and local storage.
+protocol.registerSchemesAsPrivileged([{ scheme: 'os', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true } }]);
+const RENDERER_ROOT = path.join(__dirname, 'renderer');
+const CRAFTS_ROOT = app.isPackaged ? path.join(process.resourcesPath, 'crafts') : path.join(__dirname, '..', 'crafts');
+const CRAFT_BY_KIND = { doc: 'wordcraft', sheet: 'gridcraft', slides: 'deckcraft', cad: 'cadcraft' };
+const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.wasm': 'application/wasm', '.json': 'application/json', '.png': 'image/png', '.svg': 'image/svg+xml', '.ico': 'image/x-icon', '.woff2': 'font/woff2', '.woff': 'font/woff', '.ttf': 'font/ttf', '.otf': 'font/otf', '.txt': 'text/plain; charset=utf-8' };
+function serveApp(req) {
+  let p;
+  try { p = decodeURIComponent(new URL(req.url).pathname); } catch { return new Response('bad request', { status: 400 }); }
+  let root = RENDERER_ROOT;
+  if (p.startsWith('/crafts/')) { root = CRAFTS_ROOT; p = p.slice('/crafts'.length); }
+  if (p.endsWith('/')) p += 'index.html';
+  const f = path.normalize(path.join(root, p));
+  if (f !== root && !f.startsWith(root + path.sep)) return new Response('forbidden', { status: 403 });
+  return fs.promises.readFile(f).then(
+    (data) => new Response(data, { headers: { 'content-type': MIME[path.extname(f).toLowerCase()] || 'application/octet-stream', 'cache-control': 'no-cache' } }),
+    () => new Response('not found', { status: 404 }),
+  );
+}
+/** the embedded editors that are installed: { doc: true, … } */
+function craftsInstalled() {
+  const out = {};
+  for (const [kind, name] of Object.entries(CRAFT_BY_KIND)) out[kind] = fs.existsSync(path.join(CRAFTS_ROOT, name, 'index.html'));
+  return out;
+}
+
+// ------------------------------------------------------------------ settings
+const settingsFile = () => path.join(app.getPath('userData'), 'settings.json');
+function getSettings() {
+  try { return { editors: 'craft', ...JSON.parse(fs.readFileSync(settingsFile(), 'utf8')) }; } catch { return { editors: 'craft' }; }
+}
+function setSettings(patch) {
+  const s = { ...getSettings(), ...patch };
+  try { fs.mkdirSync(app.getPath('userData'), { recursive: true }); fs.writeFileSync(settingsFile(), JSON.stringify(s)); } catch {}
+  return s;
+}
 
 // ------------------------------------------------------------------ recent files
 const recentFile = () => path.join(app.getPath('userData'), 'recent.json');
@@ -25,6 +65,9 @@ function addRecent(p) {
 
 // ------------------------------------------------------------------ file types
 const KIND_BY_EXT = { '.docx': 'doc', '.html': 'doc', '.htm': 'doc', '.txt': 'doc', '.md': 'doc', '.pptx': 'slides', '.dwg': 'cad', '.dxf': 'cad', '.xlsx': 'sheet', '.xlsm': 'sheet', '.csv': 'sheet' };
+// what the embedded editors open on top of that
+const CRAFT_EXT = { '.doc': 'doc', '.docm': 'doc', '.dotx': 'doc', '.odt': 'doc', '.rtf': 'doc', '.xlsb': 'sheet', '.ods': 'sheet', '.xltx': 'sheet', '.potx': 'slides', '.ppsx': 'slides' };
+const kindOf = (ext) => KIND_BY_EXT[ext] || CRAFT_EXT[ext] || null;
 const FILTERS = {
   doc: [{ name: 'Документ Word', extensions: ['docx'] }, { name: 'Веб-страница', extensions: ['html'] }],
   slides: [{ name: 'Презентация PowerPoint', extensions: ['pptx'] }],
@@ -32,10 +75,10 @@ const FILTERS = {
   sheet: [{ name: 'Книга Excel', extensions: ['xlsx'] }, { name: 'CSV (разделитель «;», UTF-8)', extensions: ['csv'] }],
 };
 const OPEN_FILTERS = [
-  { name: 'Все поддерживаемые', extensions: ['docx', 'xlsx', 'xlsm', 'csv', 'pptx', 'dwg', 'dxf', 'txt', 'html', 'htm', 'md'] },
-  { name: 'Документы Word', extensions: ['docx'] },
-  { name: 'Таблицы Excel', extensions: ['xlsx', 'xlsm', 'csv'] },
-  { name: 'Презентации PowerPoint', extensions: ['pptx'] },
+  { name: 'Все поддерживаемые', extensions: ['docx', 'doc', 'odt', 'rtf', 'xlsx', 'xlsm', 'xlsb', 'ods', 'csv', 'pptx', 'potx', 'ppsx', 'dwg', 'dxf', 'txt', 'html', 'htm', 'md'] },
+  { name: 'Документы Word', extensions: ['docx', 'doc', 'odt', 'rtf'] },
+  { name: 'Таблицы Excel', extensions: ['xlsx', 'xlsm', 'xlsb', 'ods', 'csv'] },
+  { name: 'Презентации PowerPoint', extensions: ['pptx', 'potx', 'ppsx'] },
   { name: 'Чертежи AutoCAD', extensions: ['dwg', 'dxf'] },
   { name: 'Текст', extensions: ['txt', 'html', 'htm', 'md'] },
 ];
@@ -121,6 +164,51 @@ ipcMain.handle('save-file', async (e, { kind, data, path: current, saveAs, sugge
     return { ok: false, error: err.message || String(err) };
   }
 });
+
+// ------------------------------------------------------------------ embedded editors
+ipcMain.handle('settings-get', () => ({ ...getSettings(), crafts: craftsInstalled() }));
+ipcMain.handle('settings-set', (e, patch) => ({ ...setSettings(patch), crafts: craftsInstalled() }));
+/** reads a file for an embedded editor; DWG becomes DXF (CADCraft's web build reads DXF) */
+ipcMain.handle('craft-open', async (e, filePath) => {
+  try {
+    const ext = path.extname(filePath).toLowerCase();
+    const kind = kindOf(ext);
+    if (!kind) throw new Error(`Формат ${ext || '(без расширения)'} не поддерживается`);
+    let bytes = fs.readFileSync(filePath);
+    let sendName = path.basename(filePath);
+    let savePath = filePath;
+    if (kind === 'cad') {
+      bytes = await cadFileToFullDxf(bytes, filePath);
+      if (ext === '.dwg') { sendName = sendName.replace(/\.dwg$/i, '.dxf'); savePath = null; }
+    }
+    addRecent(filePath);
+    return { ok: true, doc: { kind, app: CRAFT_BY_KIND[kind], name: path.basename(filePath), sendName, path: filePath, savePath, sourceExt: ext, bytes: new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.length) } };
+  } catch (err) {
+    return { ok: false, error: err.message || String(err) };
+  }
+});
+/**
+ * a file an embedded editor hands over (Save, Save As, exports). `target` is the tab's own file:
+ * written in place when the editor saves under the same name; otherwise the user picks the place.
+ */
+ipcMain.handle('craft-save', async (e, { target, name, bytes, saveAs, dir }) => {
+  try {
+    let file = target && !saveAs && path.basename(target).toLowerCase() === String(name || '').toLowerCase() ? target : null;
+    if (!file) {
+      const ext = path.extname(name || '').slice(1).toLowerCase();
+      const base = path.join(dir || (target && path.dirname(target)) || app.getPath('documents'), path.basename(name || 'Без имени'));
+      const r = process.env.OS_TEST_SAVE_DIR ? { filePath: path.join(process.env.OS_TEST_SAVE_DIR, path.basename(name)) } : await dialog.showSaveDialog(win, { title: /^(pdf|png|svg|jpe?g)$/.test(ext) ? 'Экспорт' : 'Сохранить как', defaultPath: base, filters: ext ? [{ name: ext.toUpperCase(), extensions: [ext] }, { name: 'Все файлы', extensions: ['*'] }] : undefined });
+      if (r.canceled || !r.filePath) return { ok: false, canceled: true };
+      file = r.filePath;
+    }
+    fs.writeFileSync(file, Buffer.from(bytes));
+    if (kindOf(path.extname(file).toLowerCase())) addRecent(file);
+    return { ok: true, path: file, name: path.basename(file) };
+  } catch (err) {
+    return { ok: false, error: err.message || String(err) };
+  }
+});
+ipcMain.handle('set-menu-mode', (e, mode) => { if (mode !== menuMode) { menuMode = mode; menu(); } });
 
 // Document -> PDF with the page size, margins, headers/footers and page numbers of the document.
 // action 'pdf' asks where to save; 'preview' opens the PDF in a window with a print button.
@@ -260,7 +348,7 @@ ipcMain.handle('pick-image', async () => {
   return `data:${mime};base64,${fs.readFileSync(p).toString('base64')}`;
 });
 
-ipcMain.handle('get-recent', () => getRecent().map((p) => ({ path: p, name: path.basename(p), dir: path.dirname(p), kind: KIND_BY_EXT[path.extname(p).toLowerCase()] || 'doc' })));
+ipcMain.handle('get-recent', () => getRecent().map((p) => ({ path: p, name: path.basename(p), dir: path.dirname(p), kind: kindOf(path.extname(p).toLowerCase()) || 'doc' })));
 ipcMain.handle('clear-recent', () => { try { fs.writeFileSync(recentFile(), '[]'); } catch {} return true; });
 ipcMain.handle('show-in-folder', (e, p) => shell.showItemInFolder(p));
 ipcMain.handle('confirm', async (e, { message, detail, buttons }) => {
@@ -284,46 +372,51 @@ ipcMain.handle('take-pending', () => pendingOpen.splice(0));
 ipcMain.handle('read-wasm', () => new Uint8Array(fs.readFileSync(path.join(__dirname, 'renderer', 'cadcore', 'cadcore_bg.wasm'))));
 
 // ------------------------------------------------------------------ menu
+// In an embedded editor its own keys work (Ctrl+S, Ctrl+Z, Ctrl+F…): those menu items keep their
+// labels but do not take the key away from it.
+let menuMode = 'classic';
 function menu() {
   const send = (cmd) => () => win && win.webContents.send('menu', cmd);
+  const OWN_KEYS = new Set(['save', 'save-as', 'export', 'print', 'undo', 'redo', 'find']);
+  const own = (it) => (it.click && it.cmd && menuMode === 'craft' && OWN_KEYS.has(it.cmd) ? { ...it, registerAccelerator: false } : it);
   const tpl = [
     {
       label: 'Файл',
       submenu: [
-        { label: 'Новый документ', accelerator: 'CmdOrCtrl+N', click: send('new-doc') },
-        { label: 'Новая презентация', accelerator: 'CmdOrCtrl+Shift+N', click: send('new-slides') },
-        { label: 'Новая таблица', accelerator: 'CmdOrCtrl+Alt+T', click: send('new-sheet') },
-        { label: 'Новый чертёж', accelerator: 'CmdOrCtrl+Alt+N', click: send('new-cad') },
+        { label: 'Новый документ', accelerator: 'CmdOrCtrl+N', click: send('new-doc'), cmd: 'new-doc' },
+        { label: 'Новая презентация', accelerator: 'CmdOrCtrl+Shift+N', click: send('new-slides'), cmd: 'new-slides' },
+        { label: 'Новая таблица', accelerator: 'CmdOrCtrl+Alt+T', click: send('new-sheet'), cmd: 'new-sheet' },
+        { label: 'Новый чертёж', accelerator: 'CmdOrCtrl+Alt+N', click: send('new-cad'), cmd: 'new-cad' },
         { type: 'separator' },
-        { label: 'Открыть…', accelerator: 'CmdOrCtrl+O', click: send('open') },
-        { label: 'Сохранить', accelerator: 'CmdOrCtrl+S', click: send('save') },
-        { label: 'Сохранить как…', accelerator: 'CmdOrCtrl+Shift+S', click: send('save-as') },
-        { label: 'Экспорт…', accelerator: 'CmdOrCtrl+E', click: send('export') },
-        { label: 'Печать…', accelerator: 'CmdOrCtrl+P', click: send('print') },
+        { label: 'Открыть…', accelerator: 'CmdOrCtrl+O', click: send('open'), cmd: 'open' },
+        { label: 'Сохранить', accelerator: 'CmdOrCtrl+S', click: send('save'), cmd: 'save' },
+        { label: 'Сохранить как…', accelerator: 'CmdOrCtrl+Shift+S', click: send('save-as'), cmd: 'save-as' },
+        { label: 'Экспорт…', accelerator: 'CmdOrCtrl+E', click: send('export'), cmd: 'export' },
+        { label: 'Печать…', accelerator: 'CmdOrCtrl+P', click: send('print'), cmd: 'print' },
         { type: 'separator' },
-        { label: 'Закрыть вкладку', accelerator: 'CmdOrCtrl+W', click: send('close-tab') },
+        { label: 'Закрыть вкладку', accelerator: 'CmdOrCtrl+W', click: send('close-tab'), cmd: 'close-tab' },
         { label: 'Выход', role: 'quit' },
       ],
     },
     {
       label: 'Правка',
       submenu: [
-        { label: 'Отменить', accelerator: 'CmdOrCtrl+Z', click: send('undo') },
-        { label: 'Повторить', accelerator: 'CmdOrCtrl+Y', click: send('redo') },
+        { label: 'Отменить', accelerator: 'CmdOrCtrl+Z', click: send('undo'), cmd: 'undo' },
+        { label: 'Повторить', accelerator: 'CmdOrCtrl+Y', click: send('redo'), cmd: 'redo' },
         { type: 'separator' },
         { label: 'Вырезать', role: 'cut' },
         { label: 'Копировать', role: 'copy' },
         { label: 'Вставить', role: 'paste' },
         { label: 'Выделить всё', role: 'selectAll' },
         { type: 'separator' },
-        { label: 'Найти и заменить', accelerator: 'CmdOrCtrl+F', click: send('find') },
+        { label: 'Найти и заменить', accelerator: 'CmdOrCtrl+F', click: send('find'), cmd: 'find' },
       ],
     },
     {
       label: 'Вид',
       submenu: [
-        { label: 'Следующая вкладка', accelerator: 'Ctrl+Tab', click: send('next-tab') },
-        { label: 'Предыдущая вкладка', accelerator: 'Ctrl+Shift+Tab', click: send('prev-tab') },
+        { label: 'Следующая вкладка', accelerator: 'Ctrl+Tab', click: send('next-tab'), cmd: 'next-tab' },
+        { label: 'Предыдущая вкладка', accelerator: 'Ctrl+Shift+Tab', click: send('prev-tab'), cmd: 'prev-tab' },
         { type: 'separator' },
         { label: 'Во весь экран', role: 'togglefullscreen' },
         { label: 'Инструменты разработчика', accelerator: 'F12', role: 'toggleDevTools' },
@@ -332,19 +425,20 @@ function menu() {
     {
       label: 'Справка',
       submenu: [
-        { label: 'Проверить обновления…', click: send('check-updates') },
-        { label: 'Горячие клавиши', click: send('shortcuts') },
-        { label: 'Условия использования', click: send('terms') },
+        { label: 'Проверить обновления…', click: send('check-updates'), cmd: 'check-updates' },
+        { label: 'Горячие клавиши', click: send('shortcuts'), cmd: 'shortcuts' },
+        { label: 'Условия использования', click: send('terms'), cmd: 'terms' },
         { label: 'О программе', click: () => dialog.showMessageBox(win, { type: 'info', title: 'О программе', message: 'OfficeStudio ' + app.getVersion(), detail: 'Документы (DOCX), таблицы (XLSX, CSV), презентации (PPTX) и чертежи (DWG/DXF).\n\nПрограмма предоставляется «как есть», без каких-либо гарантий. Вы используете её на свой страх и риск; автор не несёт ответственности за любой ущерб, в том числе за потерю данных. Подробно — Справка → Условия использования.\n\nЛицензия GNU GPL v3. Чтение DWG: LibreDWG (GPL-3.0). Формулы: HyperFormula (GPL-3.0).' }) },
       ],
     },
   ];
+  for (const m of tpl) m.submenu = m.submenu.map((it) => { const o = own(it); delete o.cmd; return o; });
   Menu.setApplicationMenu(Menu.buildFromTemplate(tpl));
 }
 
 // ------------------------------------------------------------------ window
 function filesFromArgv(argv) {
-  return argv.slice(1).filter((a) => !a.startsWith('-') && KIND_BY_EXT[path.extname(a).toLowerCase()] && fs.existsSync(a));
+  return argv.slice(1).filter((a) => !a.startsWith('-') && kindOf(path.extname(a).toLowerCase()) && fs.existsSync(a));
 }
 
 function createWindow() {
@@ -356,7 +450,7 @@ function createWindow() {
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, spellcheck: true },
   });
   win.webContents.session.setSpellCheckerLanguages(['ru', 'en-US']);
-  win.loadFile(path.join(__dirname, 'renderer', 'index.html'));
+  win.loadURL('os://app/index.html');
   win.on('close', (e) => {
     if (forceQuit) return;
     e.preventDefault();
@@ -365,12 +459,17 @@ function createWindow() {
   win.on('closed', () => { win = null; });
   win.webContents.setWindowOpenHandler(({ url }) => { if (/^https?:/.test(url)) shell.openExternal(url); return { action: 'deny' }; });
   win.webContents.on('will-navigate', (e) => e.preventDefault());
+  // the embedded editors may ask for fonts installed in Windows (Local Font Access) and the clipboard
+  win.webContents.session.setPermissionRequestHandler((wc, perm, cb, details) => cb(/^os:\/\/app\//.test(details.requestingUrl || '') && ['local-fonts', 'clipboard-read', 'clipboard-sanitized-write', 'fullscreen'].includes(perm)));
+  win.webContents.session.setPermissionCheckHandler((wc, perm, origin) => /^os:\/\/app/.test(origin || '') && ['local-fonts', 'clipboard-read', 'clipboard-sanitized-write', 'fullscreen'].includes(perm));
 }
 
 // Drawings render through WebGL2. Allow it on blocklisted GPUs/drivers and fall back to the
 // software rasteriser (SwiftShader) when there is no usable GPU (e.g. remote desktop sessions).
 app.commandLine.appendSwitch('ignore-gpu-blocklist');
 app.commandLine.appendSwitch('enable-unsafe-swiftshader');
+// the embedded editors follow the browser's language
+app.commandLine.appendSwitch('lang', 'ru');
 
 if (!app.requestSingleInstanceLock()) {
   app.quit();
@@ -384,6 +483,7 @@ if (!app.requestSingleInstanceLock()) {
     }
   });
   app.whenReady().then(() => {
+    protocol.handle('os', serveApp);
     pendingOpen.push(...filesFromArgv(process.argv));
     menu();
     createWindow();
