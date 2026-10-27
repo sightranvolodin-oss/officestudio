@@ -1,0 +1,408 @@
+Play this slide's animations on the canvas ⇒ Воспроизвести анимации слайда
+Playback ⇒ Воспроизведение
+Plus ⇒ Плюс
+Point Type ⇒ Тип узла
+Polished ⇒ Полировка
+Portrait Orientation ⇒ Книжная ориентация
+Position Objects ⇒ Расположение объектов
+Poster Frame ⇒ Заставка
+Powder ⇒ Пудра
+Presentations ⇒ Презентации
+Presentations and slide shows, rebuilt from scratch in pure Rust. ⇒ Презентации и показы слайдов, созданные с нуля на Rust.
+Presentations you open show up here. Use Open to browse for one. ⇒ Здесь появятся открытые вами презентации. Нажмите «Открыть», чтобы найти файл.
+Presentation{} ⇒ Презентация{}
+Presented by a speaker (full screen) ⇒ Управляемый докладчиком (полный экран)
+Presenter ⇒ Докладчик
+Presenter View ⇒ Режим докладчика
+Presenter View — DeckCraft ⇒ Режим докладчика — DeckCraft
+Preserve ⇒ Сохранить
+Preview Animations ⇒ Просмотр анимаций
+Previewing animations ⇒ Просмотр анимаций
+Previous Slide ⇒ Предыдущий слайд
+Print (220 ppi): excellent quality on most printers and screens ⇒ Печать (220 ppi): отличное качество для большинства принтеров и экранов
+Print All Slides ⇒ Напечатать все слайды
+Print Current Slide ⇒ Напечатать текущий слайд
+Print Hidden Slides ⇒ Печатать скрытые слайды
+Print layout: ⇒ Макет печати:
+Print them for your audience ⇒ Распечатайте для слушателей
+Product Information ⇒ Сведения о продукте
+Put a picture in the selected node's picture placeholder ⇒ Поместить рисунок в заполнитель выбранного узла
+Quarterly ⇒ Ежеквартальный
+Questions we want ⇒ Вопросы, которые нам нужны
+Quick Styles ⇒ Экспресс-стили
+Read aloud in thirty minutes ⇒ Читается вслух за полчаса
+Reading View ⇒ Режим чтения
+Recolor Gallery ⇒ Коллекция перекраски
+Record ⇒ Запись
+Recording narration needs audio capture (coming soon) ⇒ Для записи речевого сопровождения нужна запись звука (скоро)
+Recover Unsaved Presentations ⇒ Восстановить несохранённые презентации
+Recovered Presentations ⇒ Восстановленные презентации
+Red Pen ⇒ Красная ручка
+Reflected Bevel, White ⇒ Отражённый рельеф, белый
+Reflected Rounded Rectangle ⇒ Скруглённый прямоугольник с отражением
+Regroup ⇒ Перегруппировать
+Reject All ({}) ⇒ Отклонить все ({})
+Reject Revision ⇒ Отклонить исправление
+Remove All Animations ⇒ Удалить все анимации
+Remove All Sections ⇒ Удалить все разделы
+Remove Animation ⇒ Удалить анимацию
+Remove Less (tighter) ⇒ Удалить меньше (точнее)
+Remove More (looser) ⇒ Удалить больше (грубее)
+Remove Section ⇒ Удалить раздел
+Remove Section & Slides ⇒ Удалить раздел и слайды
+Remove Shape ⇒ Удалить фигуру
+Remove bullets and numbering ⇒ Убрать маркеры и нумерацию
+Remove the picture style ⇒ Убрать стиль рисунка
+Rename Section ⇒ Переименовать раздел
+Rename Section… ⇒ Переименовать раздел…
+Rename Slide ⇒ Переименовать слайд
+Render Slide ⇒ Отрисовать слайд
+Reorder Animation ⇒ Изменить порядок анимации
+Reorder Objects ⇒ Изменить порядок объектов
+Repeated word ⇒ Повтор слова
+Replace Fonts ⇒ Заменить шрифты
+Replace Fonts… ⇒ Заменить шрифты…
+Replace straight quotes with smart quotes ⇒ Заменять прямые кавычки парными
+Replaced {} occurrence(s). ⇒ Заменено вхождений: {}.
+Replaced “{from}” with “{}”. ⇒ «{from}» заменено на «{}».
+Rescan Installed Fonts ⇒ Обновить список шрифтов
+Reset 3-D ⇒ Сбросить объём
+Reset Background ⇒ Восстановить фон
+Reset Effects ⇒ Сбросить эффекты
+Reset Slide ⇒ Восстановить слайд
+Reset Slide Background ⇒ Восстановить фон слайда
+Reset Style ⇒ Сбросить стиль
+Reset to Defaults ⇒ По умолчанию
+Resize shape to fit text ⇒ Подгонять размер фигуры под текст
+Resolve Thread ⇒ Закрыть обсуждение
+Reuse Slides ⇒ Повторное использование слайдов
+Reuse Slides (Keep Source Formatting)… ⇒ Повторное использование слайдов (с исходным форматированием)…
+Reuse Slides needs the desktop app ⇒ Повторное использование слайдов доступно только в настольной версии
+Reuse Slides… ⇒ Повторное использование слайдов…
+Revised ⇒ Исправлено
+Rewind after Playing ⇒ Перемотать после воспроизведения
+Ribbon Tab ⇒ Вкладка ленты
+Right Tab ⇒ Табуляция по правому краю
+Right-click any ribbon button to add it. ⇒ Щёлкните правой кнопкой любую кнопку ленты, чтобы добавить её.
+Road map ⇒ Дорожная карта
+Rotate Left ⇒ Повернуть влево
+Rotate Right ⇒ Повернуть вправо
+Rotate or Flip ⇒ Повернуть или отразить
+Rotated, White ⇒ Повёрнутая, белая
+Rotation (°): ⇒ Поворот (°):
+Round Dot ⇒ Круглые точки
+Rounded Diagonal Corner, White ⇒ Скруглённые противолежащие углы, белая
+Row Height ⇒ Высота строки
+Run program: ⇒ Запуск программы:
+Sample deck: Northern Lights ⇒ Пример презентации: Северное сияние
+Saturation {}% ⇒ Насыщенность {}%
+Saturday on the ridge ⇒ Суббота на хребте
+Save AutoRecover Information ⇒ Сохранять данные автовосстановления
+Save to Data ⇒ Сохранить в данные
+Saving a copy needs a file picker, which this window doesn't have. ⇒ Для сохранения копии нужен выбор файла, а в этом окне его нет.
+Scale X ⇒ Масштаб по X
+Scale Y ⇒ Масштаб по Y
+Scale height ⇒ Масштаб по высоте
+Scale height (%): ⇒ Масштаб по высоте (%):
+Scale width ⇒ Масштаб по ширине
+Scale width (%): ⇒ Масштаб по ширине (%):
+Scheme name ⇒ Имя схемы
+Science ⇒ Наука
+ScreenTip: ⇒ Подсказка:
+Screenshot ⇒ Снимок экрана
+Screenshot (not available yet) ⇒ Снимок экрана (пока недоступно)
+Search commands (⇧⌘P) ⇒ Поиск команд (⇧⌘P)
+Search commands… ⇒ Поиск команд…
+Search for a file ⇒ Поиск файла
+Search for a word ⇒ Поиск слова
+Search for themes and templates ⇒ Поиск тем и шаблонов
+Seconds per slide: ⇒ Секунд на слайд:
+Section ⇒ Раздел
+Section Zoom ⇒ Масштаб раздела
+See you next week ⇒ До встречи на следующей неделе
+Seek ⇒ Перемотка
+Segment Type ⇒ Тип сегмента
+Segmented Cycle ⇒ Сегментированный цикл
+Segmented Pyramid ⇒ Сегментированная пирамида
+Select All Text ⇒ Выделить весь текст
+Select Cells ⇒ Выделить ячейки
+Select None ⇒ Снять выделение
+Select Slides ⇒ Выделить слайды
+Select a SmartArt graphic to edit its text. ⇒ Выделите рисунок SmartArt, чтобы изменить его текст.
+Select a chart first. ⇒ Сначала выделите диаграмму.
+Select a picture to rotate it or change brightness and contrast ⇒ Выделите рисунок, чтобы повернуть его или изменить яркость и контрастность
+Select a shape to format it. ⇒ Выделите фигуру, чтобы изменить её формат.
+Select a word on the slide, or type one above. ⇒ Выделите слово на слайде или введите его выше.
+Select an object on the slide and add an animation from the Animations tab. ⇒ Выделите объект на слайде и добавьте анимацию на вкладке «Анимация».
+Sepia ⇒ Сепия
+Series ⇒ Ряд
+Set Transparent Color ⇒ Установить прозрачный цвет
+Set Transparent Color: click the colour in the picture (Esc cancels) ⇒ Прозрачный цвет: щёлкните цвет на рисунке (Esc — отмена)
+Set Up ⇒ Настройка
+Set Up Show… ⇒ Настройка показа…
+Set Up Slide Show ⇒ Настройка показа слайдов
+Set Up Slide Show… ⇒ Настройка показа слайдов…
+Set as Default Shape ⇒ Сделать фигурой по умолчанию
+Setting ⇒ Параметр
+Several slides on each page of a PDF ⇒ Несколько слайдов на каждой странице PDF
+Shape Gallery ⇒ Коллекция фигур
+Shape {} ⇒ Фигура {}
+Shingle ⇒ Черепица
+Show Media Controls ⇒ Показывать элементы управления
+Show Slide ⇒ Показать слайд
+Show smart guides ⇒ Показывать смарт-направляющие
+Show the one message. Hide the rest until asked. ⇒ Покажите одну мысль. Остальное — по запросу.
+Show type ⇒ Тип показа
+Show without animation ⇒ Без анимации
+Show without narration ⇒ Без речевого сопровождения
+Shrink text on overflow ⇒ Сжимать текст при переполнении
+Shutter ⇒ Затвор
+Simple Fill ⇒ Простая заливка
+Simple Frame, Black ⇒ Простая рамка, чёрная
+Simple Frame, White ⇒ Простая рамка, белая
+Simple, white ⇒ Простая, белая
+Size & Properties ⇒ Размер и свойства
+Size (% of text): ⇒ Размер (% от текста):
+Size and Position ⇒ Размер и положение
+Size and Position… ⇒ Размер и положение…
+Slate ⇒ Сланец
+Slide ⇒ Слайд
+Slide Image ⇒ Изображение слайда
+Slide Image Placeholder 3 ⇒ Заполнитель изображения слайда 3
+Slide Master ⇒ Образец слайдов
+Slide Number ⇒ Номер слайда
+Slide Number Placeholder ⇒ Заполнитель номера слайда
+Slide Show ⇒ Слайд-шоу
+Slide Size ⇒ Размер слайда
+Slide Sorter ⇒ Сортировщик слайдов
+Slide Zoom ⇒ Масштаб слайда
+Slide inserted after {slide} ⇒ Слайд вставлен после {slide}
+Slide number ⇒ Номер слайда
+Slide timings recorded. ⇒ Время показа слайдов записано.
+Slide {:02}:{:04.1}   Total {:02}:{:02} ⇒ Слайд {:02}:{:04.1}   Всего {:02}:{:02}
+Slide {} ⇒ Слайд {}
+Slide {} changed ⇒ Слайд {} изменён
+Slide {} deleted ⇒ Слайд {} удалён
+Slide {} of {n} ⇒ Слайд {} из {n}
+Slide {} of {} ⇒ Слайд {} из {}
+Slide {}: {}{} ⇒ Слайд {}: {}{}
+Slide {}: “{w}” ⇒ Слайд {}: «{w}»
+Slides ⇒ Слайды
+Slides (e.g. 1,3,5): ⇒ Слайды (например, 1,3,5):
+Slides From ⇒ Слайды из
+Slides from Outline ⇒ Слайды из структуры
+Slides from Outline… ⇒ Слайды из структуры…
+Slides sized for: ⇒ Размер слайдов:
+Slides: ⇒ Слайды:
+Slides: choose a range from 1 to {n} ⇒ Слайды: выберите диапазон от 1 до {n}
+Slide… ⇒ Слайд…
+Small (640 px wide) ⇒ Мелкий (ширина 640 пикс.)
+Small checkerboard ⇒ Мелкая шахматная доска
+Small confetti ⇒ Мелкое конфетти
+Small grid ⇒ Мелкая сетка
+SmartArt ({kind}) ⇒ SmartArt ({kind})
+SmartArt arrow ⇒ Стрелка SmartArt
+SmartArt connector ⇒ Соединитель SmartArt
+SmartArt picture ⇒ Рисунок SmartArt
+SmartArt preview ⇒ Просмотр SmartArt
+SmartArt shape ⇒ Фигура SmartArt
+Smooth Corners ⇒ Сглаженные углы
+Smooth Point ⇒ Гладкий узел
+Snap objects to grid ⇒ Привязывать объекты к сетке
+Snap objects to other objects ⇒ Привязывать объекты к другим объектам
+Snip Diagonal Corner, White ⇒ Срезанные противолежащие углы, белая
+Soft Edge Oval ⇒ Овал с мягкими краями
+Soft Edge Rectangle ⇒ Прямоугольник с мягкими краями
+Solar wind ⇒ Солнечный ветер
+Solid diamond ⇒ Сплошные ромбы
+Solid line ⇒ Сплошная линия
+Sound ⇒ Звук
+Sound: ⇒ Звук:
+Spacing (in): ⇒ Интервал (дюймы):
+Spacing after ⇒ Интервал после
+Spacing after must be a number ⇒ Интервал после должен быть числом
+Spacing before ⇒ Интервал перед
+Spacing before must be a number ⇒ Интервал перед должен быть числом
+Spacing must be from 0 to 22 inches ⇒ Интервал должен быть от 0 до 22 дюймов
+Special indent must be a number of inches ⇒ Первая строка: нужно число дюймов
+Specify the company ⇒ Укажите организацию
+Specify the subject ⇒ Укажите тему
+Spelling Dictionary ⇒ Словарь
+Spelling is checked for languages marked (dictionary). ⇒ Орфография проверяется для языков, отмеченных «(словарь)».
+Spring report ⇒ Весенний отчёт
+Square Dot ⇒ Квадратные точки
+Stacked Venn ⇒ Диаграмма Венна со слоями
+Standard (4:3) ⇒ Стандартный (4:3)
+Start After Previous ⇒ После предыдущего
+Start Automatically ⇒ Автоматически
+Start On Click ⇒ По щелчку
+Start Slide Show ⇒ Начать показ слайдов
+Start With Previous ⇒ С предыдущим
+Start a conversation ⇒ Начать обсуждение
+Start from Beginning ⇒ С начала
+Start time (s): ⇒ Начало (с):
+Start: {:.2}s, End: {:.2}s ⇒ Начало: {:.2} с, конец: {:.2} с
+Starter Templates ⇒ Начальные шаблоны
+Stealth ⇒ Наконечник
+Stealth end ⇒ Наконечник в конце
+Step Up Process ⇒ Восходящий процесс
+Still opening {name} ⇒ Ещё открывается {name}
+Stop Editing Text ⇒ Закончить правку текста
+Stopped opening {} ⇒ Открытие {} прервано
+Straight Point ⇒ Прямой узел
+Straight Segment ⇒ Прямой сегмент
+Style {i} ⇒ Стиль {i}
+Subtle ⇒ Простые
+Subtle Effect ⇒ Слабый эффект
+Summary Zoom ⇒ Масштаб сводки
+Sun ⇒ Солнце
+Tab stop position (in): ⇒ Позиция табуляции (дюймы):
+Tab stops: ⇒ Позиции табуляции:
+Table Eraser ⇒ Ластик таблицы
+Table List ⇒ Табличный список
+Task Pane ⇒ Область задач
+Ten minutes. One promise. ⇒ Десять минут. Одно обещание.
+Text Box Margins ⇒ Поля надписи
+Text Cycle ⇒ Текстовый цикл
+Text Options ⇒ Параметры текста
+Text Shadow ⇒ Тень текста
+Text Transform ⇒ Преобразование текста
+Text Transparency ⇒ Прозрачность текста
+Text above, title at the foot ⇒ Текст сверху, заголовок внизу
+Text boxes have no picture options ⇒ У надписей нет параметров рисунка
+Text color 2 ⇒ Цвет текста 2
+Text is longer than 400 characters ⇒ Текст длиннее 400 знаков
+Text: {text} ⇒ Текст: {text}
+That file is empty ⇒ Файл пустой
+That picture is larger than 32 MB ⇒ Рисунок больше 32 МБ
+The Eyedropper takes colours from a slide ⇒ Пипетка берёт цвета со слайда
+The Science ⇒ Наука
+The ask ⇒ Просьба
+The current slide as a compressed picture ⇒ Текущий слайд как сжатый рисунок
+The current slide as a picture ⇒ Текущий слайд как рисунок
+The idea ⇒ Идея
+The mess ⇒ Беспорядок
+The numbers ⇒ Цифры
+The part you can check on the way home ⇒ То, что можно проверить по дороге домой
+The picture list is invalid ⇒ Неверный список рисунков
+The presentation has no sections. Add one with Home › Section. ⇒ В презентации нет разделов. Добавьте раздел: Главная › Раздел.
+The presentation keeps its own file ⇒ Презентация остаётся в своём файле
+The slide titles and bullet text as plain text ⇒ Заголовки слайдов и текст списков как обычный текст
+The slide titles and bullet text for word processors ⇒ Заголовки слайдов и текст списков для текстовых редакторов
+The spelling check is complete. No issues found. ⇒ Проверка орфографии завершена. Ошибок не найдено.
+The version, the people and models who built it, and where to find us. ⇒ Версия, люди и модели, которые её создали, и где нас найти.
+The web build inserts album pictures from data passed to insert.photoAlbum ⇒ Веб-версия вставляет рисунки альбома из данных insert.photoAlbum
+Theme Gallery ⇒ Коллекция тем
+Themes (whole presentation) ⇒ Темы (вся презентация)
+There are no unsaved changes. ⇒ Несохранённых изменений нет.
+There are no unsaved presentations to recover ⇒ Несохранённых презентаций для восстановления нет
+Thick Matte, Black ⇒ Толстая матовая рамка, чёрная
+Thick Thin ⇒ Толстая и тонкая
+Thin Thick ⇒ Тонкая и толстая
+This Document ⇒ Этот документ
+This presentation has never been saved. ⇒ Эта презентация ещё не сохранялась.
+This presentation has no custom shows (Slide Show ▸ Custom Slide Show). ⇒ В презентации нет произвольных показов (Слайд-шоу ▸ Произвольный показ).
+This presentation has unsaved changes. Revert goes back to the saved file. ⇒ В презентации есть несохранённые изменения. «Вернуть» откатывает к сохранённому файлу.
+This slide has no animations ⇒ На этом слайде нет анимаций
+This week's agenda ⇒ План на неделю
+Three a page leaves lines for notes ⇒ По три на странице, с местом для заметок
+Three steps ⇒ Три шага
+Thumbs up ⇒ Палец вверх
+Tick at least one slide to insert ⇒ Отметьте хотя бы один слайд для вставки
+Tile picture as texture ⇒ Размножить рисунок как текстуру
+Timer ⇒ Таймер
+Timing bar {} ⇒ Шкала времени {}
+Title column beside the text ⇒ Заголовок столбцом рядом с текстом
+Titled Matrix ⇒ Матрица с заголовком
+To slide: ⇒ По слайд:
+Today and after ⇒ Сегодня и дальше
+Top bevel ⇒ Рельеф сверху
+Top left ⇒ Сверху слева
+Top right ⇒ Сверху справа
+Transition ⇒ Переход
+Transition Gallery ⇒ Коллекция переходов
+Transition to This Slide ⇒ Переход к этому слайду
+Transitions ⇒ Переходы
+Translation needs a language model (not bundled) ⇒ Для перевода нужна языковая модель (не входит в комплект)
+Transparent background ⇒ Прозрачный фон
+Trapezoid List ⇒ Трапециевидный список
+Trellis ⇒ Решётка
+Trend ⇒ Тенденция
+Trigger ⇒ Триггер
+Trim Media ⇒ Монтаж
+Try it ⇒ Попробуйте
+Twenty people, two weeks, one question: did the right note surface? ⇒ Двадцать человек, две недели, один вопрос: всплыла ли нужная заметка?
+Type and organise the diagram's text ⇒ Введите и упорядочьте текст схемы
+Type the text for the new text box ⇒ Введите текст новой надписи
+Type your text here ⇒ Введите текст
+Untitled Section ⇒ Раздел без заголовка
+Untitled slide ⇒ Слайд без заголовка
+Update automatically ⇒ Обновлять автоматически
+Upward diagonal ⇒ Восходящая диагональ
+Use Destination Theme ⇒ Использовать тему конечной презентации
+Use Timings ⇒ Использовать время показа
+Use timings, if present ⇒ Использовать время показа, если есть
+User Information ⇒ Сведения о пользователе
+Users ⇒ Пользователи
+Variant Gallery ⇒ Коллекция вариантов
+Variants ⇒ Варианты
+Version X.Y.Z ⇒ Версия X.Y.Z
+Version {} ⇒ Версия {}
+Vertical (in): ⇒ По вертикали (дюймы):
+Vertical Box List ⇒ Вертикальный блочный список
+Vertical Bullet List ⇒ Вертикальный маркированный список
+Vertical Picture List ⇒ Вертикальный список рисунков
+Vertical Process ⇒ Вертикальный процесс
+Vertical alignment ⇒ Вертикальное выравнивание
+Very Loose ⇒ Очень свободный
+Very Tight ⇒ Очень плотный
+Very loose ⇒ Очень свободный
+Very tight ⇒ Очень плотный
+Video Format ⇒ Формат видео
+Video from File… ⇒ Видео из файла…
+Walk home ⇒ Дорога домой
+Warmer gloves. A second pencil. The map that shows the creek. ⇒ Тёплые перчатки. Второй карандаш. Карта, где видно ручей.
+Warning ⇒ Предупреждение
+Washout ⇒ Подложка
+Wavy ⇒ Волнистая
+Weave ⇒ Плетение
+Web (150 ppi): good for web pages and projectors ⇒ Веб (150 ppi): для веб-страниц и проекторов
+Web Page or File ⇒ Веб-страница или файл
+Weekly briefing ⇒ Еженедельный брифинг
+Welcome everyone. This deck was made in DeckCraft. ⇒ Добро пожаловать. Эта презентация сделана в DeckCraft.
+What an outing set out to see, and what it actually found ⇒ Что хотели увидеть на выезде и что увидели на самом деле
+What changed, what's stuck, and what we do next ⇒ Что изменилось, что застряло и что делаем дальше
+What we saw ⇒ Что мы увидели
+What we went to see, and what we found ⇒ Что хотели увидеть и что нашли
+What we will stop ⇒ Что мы прекратим
+What we'll cover ⇒ О чём поговорим
+Where should the next quarter refuse work? ⇒ От чего откажемся в следующем квартале?
+Where we are ⇒ Где мы сейчас
+White Outline ⇒ Белый контур
+White on ⇒ Белый на
+Whoosh ⇒ Свист
+Wide downward diagonal ⇒ Широкая нисходящая диагональ
+Wide upward diagonal ⇒ Широкая восходящая диагональ
+Widescreen (16:9) ⇒ Широкоэкранный (16:9)
+Width (in): ⇒ Ширина (дюймы):
+Width (pixels): ⇒ Ширина (пикс.):
+With ⇒ С
+With Previous ⇒ С предыдущим
+WordArt style {} ⇒ Стиль WordArt {}
+Wrap Text in Shape ⇒ Переносить текст в фигуре
+Wrap text in shape ⇒ Переносить текст в фигуре
+X Rotation ⇒ Поворот по X
+Y Rotation ⇒ Поворот по Y
+Your name (comments): ⇒ Ваше имя (для примечаний):
+Your text here ⇒ Ваш текст
+Z Rotation ⇒ Поворот по Z
+Zig zag ⇒ Зигзаг
+Zoom level ⇒ Масштаб
+Zoom on ⇒ Масштаб на
+Zoom to ⇒ Масштаб до
+[No Sound] ⇒ [Нет звука]
+[Stop Previous Sound] ⇒ [Остановить предыдущий звук]
+“{from}” isn't used explicitly. ⇒ «{from}» явно не используется.
+“{text}” isn't a valid slide range: use numbers and ranges such as 1-3, 5 ⇒ «{text}» — неверный диапазон слайдов: укажите номера и диапазоны, например 1-3, 5
+“{}” is not available yet. ⇒ «{}» пока недоступно.
+… (not checked) ⇒ … (не проверено)

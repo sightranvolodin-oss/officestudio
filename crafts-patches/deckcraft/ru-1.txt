@@ -1,0 +1,329 @@
+(missing) ⇒ (нет)
+(no spelling suggestions) ⇒ (нет вариантов)
++ Add ⇒ + Добавить
++ New Comment ⇒ + Новое примечание
++ New Slide ⇒ + Новый слайд
++ Row ⇒ + Строка
++ Series ⇒ + Ряд
+1 picture ⇒ 1 рисунок
+1 picture with title ⇒ 1 рисунок с заголовком
+1.5 lines ⇒ 1,5 строки
+2 pictures ⇒ 2 рисунка
+2 pictures with title ⇒ 2 рисунка с заголовком
+3-D Format ⇒ Формат объёмной фигуры
+3-D Rotation ⇒ Поворот объёмной фигуры
+3D Model ⇒ Трёхмерная модель
+4 pictures ⇒ 4 рисунка
+4 pictures with title ⇒ 4 рисунка с заголовком
+A fixed copy that keeps its layout on any device ⇒ Неизменяемая копия, которая выглядит одинаково на любом устройстве
+A photo album holds at most 48 pictures or text boxes ⇒ В фотоальбоме может быть не больше 48 рисунков или надписей
+A public talk the audience can check on the way home ⇒ Публичное выступление, которое слушатели могут проверить по дороге домой
+A quieter inbox ⇒ Спокойнее почта
+A report meant to be read aloud in half an hour ⇒ Доклад, который читают вслух за полчаса
+A short class that ends with the learner explaining the idea ⇒ Короткое занятие, в конце которого ученик сам объясняет идею
+A short lesson for people new to the idea ⇒ Короткий урок для тех, кто знакомится с темой
+A short picture before the details ⇒ Короткая картина перед подробностями
+A short tour of the aurora — where it comes from, when to look, and how to photograph it ⇒ Коротко о полярном сиянии: откуда оно, когда смотреть и как фотографировать
+A smaller promise ⇒ Обещание поскромнее
+A talk about how cities sleep ⇒ Рассказ о том, как спят города
+A ten-minute conversation about one promise, not a tour of features ⇒ Десятиминутный разговор об одном обещании, а не обзор функций
+A weekly check-in: what changed, what's stuck, and who does the next thing ⇒ Еженедельная сверка: что изменилось, что застряло и кто делает следующий шаг
+ALL pictures black and white ⇒ ВСЕ рисунки чёрно-белые
+About DeckCraft ⇒ О DeckCraft
+Accent 1 ⇒ Акцент 1
+Accent 2 ⇒ Акцент 2
+Accent 3 ⇒ Акцент 3
+Accent 4 ⇒ Акцент 4
+Accent 5 ⇒ Акцент 5
+Accent 6 ⇒ Акцент 6
+Accent Process ⇒ Процесс с акцентами
+Accent color 1 ⇒ Цвет акцента 1
+Accent color 2 ⇒ Цвет акцента 2
+Accent color 3 ⇒ Цвет акцента 3
+Accent color 4 ⇒ Цвет акцента 4
+Accent color 5 ⇒ Цвет акцента 5
+Accent color 6 ⇒ Цвет акцента 6
+Accept All ({}) ⇒ Принять все ({})
+Accept Revision ⇒ Принять исправление
+Action Button: {k} ⇒ Управляющая кнопка: {k}
+Action Buttons ⇒ Управляющие кнопки
+Action Settings ⇒ Настройка действия
+Action Settings… ⇒ Настройка действия…
+Action on click ⇒ Действие по щелчку
+Action on mouse over ⇒ Действие при наведении
+Acts on the selected shapes. ⇒ Применяется к выделенным фигурам.
+Acts on the selected text or shapes. ⇒ Применяется к выделенному тексту или фигурам.
+Acts on the text being edited; text.edit starts editing a shape's text. ⇒ Применяется к редактируемому тексту; text.edit начинает правку текста фигуры.
+Acts on two or more selected shapes. ⇒ Применяется к двум или более выделенным фигурам.
+Acts on two or more shapes: {n}, else the selected ones. ⇒ Применяется к двум или более фигурам: {n}, иначе к выделенным.
+Acts on {n}, else on the selected shapes. ⇒ Применяется к {n}, иначе к выделенным фигурам.
+Add Animation ⇒ Добавить анимацию
+Add Assistant ⇒ Добавить помощника
+Add Font ⇒ Добавить шрифт
+Add Horizontal Guide ⇒ Добавить горизонтальную направляющую
+Add Pictures… ⇒ Добавить рисунки…
+Add Point ⇒ Добавить узел
+Add Section ⇒ Добавить раздел
+Add Shape Above ⇒ Добавить фигуру выше
+Add Shape After ⇒ Добавить фигуру после
+Add Shape Before ⇒ Добавить фигуру перед
+Add Shape Below ⇒ Добавить фигуру ниже
+Add Vertical Guide ⇒ Добавить вертикальную направляющую
+Add a category ⇒ Добавить категорию
+Add a picture or a text box first ⇒ Сначала добавьте рисунок или надпись
+Add a tag ⇒ Добавить тег
+Add a title ⇒ Добавить заголовок
+Add a title with a picture or some text to get layout ideas. ⇒ Добавьте заголовок и рисунок или текст, чтобы получить идеи оформления.
+Add an author ⇒ Добавить автора
+Adjust Shape ⇒ Настроить фигуру
+Adjust WordArt ⇒ Настроить WordArt
+Advanced Animation ⇒ Расширенная анимация
+After ⇒ После
+After Previous ⇒ После предыдущего
+After text ⇒ После текста
+Aim ⇒ Цель
+Album theme ⇒ Тема альбома
+Alert ⇒ Предупреждение
+Align Bottom ⇒ По нижнему краю
+Align Cell Text ⇒ Выравнивание текста в ячейке
+Align Middle ⇒ По середине
+Align Selected Objects ⇒ Выровнять выделенные объекты
+Align Top ⇒ По верхнему краю
+Align or Distribute ⇒ Выровнять или распределить
+Align text to the {l} of the cell ⇒ Выровнять текст в ячейке: {l}
+Align to Slide ⇒ Выровнять относительно слайда
+All slides ⇒ Все слайды
+All slides on ⇒ Все слайды на
+An open-source, clean-room project. Not affiliated with Microsoft. ⇒ Открытый проект, созданный с нуля. Не связан с Microsoft.
+Animated GIF (.gif) ⇒ Анимированный GIF (.gif)
+Animation Gallery ⇒ Коллекция анимаций
+Animation Painter ⇒ Анимация по образцу
+Animation Painter (double-click to keep it on) ⇒ Анимация по образцу (двойной щелчок — оставить включённой)
+Animation Pane ⇒ Область анимации
+Animation Styles ⇒ Стили анимации
+Animations ⇒ Анимация
+Animations on Slide ⇒ Анимации на слайде
+Applies to this presentation's theme colours. ⇒ Применяется к цветам темы этой презентации.
+Apply Animation ⇒ Применить анимацию
+Apply Design Idea ⇒ Применить идею оформления
+Apply To All ⇒ Применить ко всем
+Apply only to this picture ⇒ Применить только к этому рисунку
+Arrow at end ⇒ Стрелка в конце
+Arrow at start ⇒ Стрелка в начале
+Arrow down ⇒ Стрелка вниз
+Arrow left ⇒ Стрелка влево
+Arrow right ⇒ Стрелка вправо
+Arrow up ⇒ Стрелка вверх
+Arrows at both ends ⇒ Стрелки с обеих сторон
+As One Object ⇒ Как один объект
+As: ⇒ Как:
+Audio from File… ⇒ Звук из файла…
+Aurora Band ⇒ Полоса сияния
+AutoCorrect as you type ⇒ Автозамена при вводе
+Autofit ⇒ Автоподбор
+Automatic bulleted and numbered lists ⇒ Автоматические маркированные и нумерованные списки
+Available formats: ⇒ Доступные форматы:
+Average clear, dark nights per month ⇒ Ясных тёмных ночей в месяц, в среднем
+Award ⇒ Награда
+Back (Esc) ⇒ Назад (Esc)
+Bar chart ⇒ Линейчатая диаграмма
+Basic Bending Process ⇒ Простой ломаный процесс
+Basic Block List ⇒ Простой блочный список
+Basic Chevron Process ⇒ Простой процесс со стрелками
+Basic Pie ⇒ Простая круговая
+Basic Target ⇒ Простая мишень
+Basic Timeline ⇒ Простая временная шкала
+Before text ⇒ Перед текстом
+Before you share it, check the presentation for things people with disabilities might find hard to read. ⇒ Перед тем как поделиться, проверьте, нет ли в презентации того, что будет трудно воспринять людям с ограниченными возможностями.
+Begin arrow ⇒ Начальная стрелка
+Begin size ⇒ Размер начала
+Bell ⇒ Колокольчик
+Best months to look (clear nights) ⇒ Лучшие месяцы для наблюдений (ясные ночи)
+Bevel Perspective ⇒ Рельеф в перспективе
+Bevel Rectangle ⇒ Прямоугольник с рельефом
+Beveled Matte, White ⇒ Матовая рамка с рельефом, белая
+Beveled Oval, Black ⇒ Овал с рельефом, чёрный
+Black Pen ⇒ Чёрная ручка
+Black and White: 25% ⇒ Чёрно-белое: 25%
+Black and White: 50% ⇒ Чёрно-белое: 50%
+Black and White: 75% ⇒ Чёрно-белое: 75%
+Black on ⇒ Чёрный на
+Blank Presentation ⇒ Пустая презентация
+Block Cycle ⇒ Блочный цикл
+Blue Pen ⇒ Синяя ручка
+Body ⇒ Основной текст
+Body font ⇒ Шрифт основного текста
+Body sample  {minor} ⇒ Образец текста  {minor}
+Body: ⇒ Основной текст:
+Bolt ⇒ Молния
+Bottom bevel ⇒ Рельеф снизу
+Bottom left ⇒ Снизу слева
+Bottom right ⇒ Снизу справа
+Brick Scene ⇒ Кирпичная сцена
+Briefcase ⇒ Портфель
+Briefing ⇒ Брифинг
+Bright, active aurora ⇒ Яркое, активное сияние
+Brightness {:+}% ⇒ Яркость {:+}%
+Bring one number and one question ⇒ Принесите одно число и один вопрос
+Browse ⇒ Обзор
+Browse for Themes needs the desktop app for now ⇒ Поиск тем пока доступен только в настольной версии
+Browse for Themes… ⇒ Поиск тем…
+Browsed at a kiosk (full screen) ⇒ Автоматический (полный экран)
+Browsed by an individual (window) ⇒ Управляемый пользователем (окно)
+Building ⇒ Здание
+Bulleted ⇒ Маркированный
+Bullets and Numbering ⇒ Список
+Bullets and Numbering… ⇒ Список…
+By Paragraph ⇒ По абзацам
+By the end ⇒ К концу
+Cameo ⇒ Камея
+Camera ⇒ Камера
+Camera capture is not available yet ⇒ Съёмка с камеры пока недоступна
+Camera settings that work ⇒ Настройки камеры, которые работают
+Cap type ⇒ Тип окончания
+Captions under pictures ⇒ Подписи под рисунками
+Cartoon ⇒ Мультфильм
+Center Shadow Rectangle ⇒ Прямоугольник с тенью по центру
+Center Tab ⇒ Табуляция по центру
+Centred title over the text ⇒ Заголовок по центру над текстом
+Change File Type ⇒ Изменить тип файла
+Change Spelling ⇒ Исправить
+Change to: ⇒ Заменить на:
+Character spacing must be a number ⇒ Межзнаковый интервал должен быть числом
+Charged particles, magnetic fields and glowing gases ⇒ Заряженные частицы, магнитные поля и светящиеся газы
+Chart Data ⇒ Данные диаграммы
+Chart Elements ⇒ Элементы диаграммы
+Charts ⇒ Диаграммы
+Check circle ⇒ Круг с галочкой
+Check for Issues ⇒ Проверка
+Chevron ⇒ Шеврон
+Chime ⇒ Звон
+Choose a SmartArt Graphic ⇒ Выбор рисунка SmartArt
+Choose a body font. ⇒ Выберите шрифт основного текста.
+Choose a font ⇒ Выберите шрифт
+Choose a heading font. ⇒ Выберите шрифт заголовков.
+Choose where to save ⇒ Выберите, куда сохранить
+Choosing a presentation to reuse needs the desktop app ⇒ Выбор презентации для повторного использования доступен только в настольной версии
+Choosing a sound file needs the desktop app ⇒ Выбор звукового файла доступен только в настольной версии
+Clapperboard ⇒ Хлопушка
+Clear skies! ⇒ Ясного неба!
+Click a colour in the picture to make it transparent ⇒ Щёлкните цвет на рисунке, чтобы сделать его прозрачным
+Click a symbol to insert it at the insertion point. ⇒ Щёлкните символ, чтобы вставить его в позицию курсора.
+Click the slide to take the colour under the pointer ⇒ Щёлкните слайд, чтобы взять цвет под указателем
+Click the slide to zoom in. Esc cancels. ⇒ Щёлкните слайд, чтобы увеличить. Esc — отмена.
+Click to add first slide ⇒ Щёлкните, чтобы добавить первый слайд
+Click to add notes ⇒ Заметки к слайду
+Click to change this one; Shift-click to change all ⇒ Щелчок — изменить этот; Shift+щелчок — изменить все
+Click to edit Master text styles ⇒ Образец текста
+Clock ⇒ Часы
+Close Master View ⇒ Закрыть режим образца
+Collapse the Ribbon ⇒ Свернуть ленту
+Color At ⇒ Цвет в точке
+Colorful Range - Accent Colors 2 to 3 ⇒ Цветной диапазон — акценты 2–3
+Colorful Range - Accent Colors 3 to 4 ⇒ Цветной диапазон — акценты 3–4
+Colorful Range - Accent Colors 4 to 5 ⇒ Цветной диапазон — акценты 4–5
+Colorful Range - Accent Colors 5 to 6 ⇒ Цветной диапазон — акценты 5–6
+Column Width ⇒ Ширина столбца
+Column chart ⇒ Гистограмма
+Command Palette ⇒ Палитра команд
+Commit Composition ⇒ Завершить ввод
+Community Links ⇒ Сообщество
+Compare needs the desktop app for now ⇒ Сравнение пока доступно только в настольной версии
+Compare this presentation with a revised copy from Review › Compare. ⇒ Сравните эту презентацию с исправленной копией: Рецензирование › Сравнить.
+Compared with {} ⇒ Сравнение с {}
+Compass ⇒ Компас
+Compose Text ⇒ Набор текста
+Compound Frame, Black ⇒ Составная рамка, чёрная
+Compound type ⇒ Составной тип
+Compress ⇒ Сжать
+Compressed {n} picture(s): {} KB → {} KB ⇒ Сжато рисунков: {n}, {} КБ → {} КБ
+Compression options ⇒ Параметры сжатия
+Connection Sites ⇒ Точки соединения
+Connector ⇒ Соединительная линия
+Content ⇒ Содержимое
+Continuous Block Process ⇒ Непрерывный блочный процесс
+Continuous Cycle ⇒ Непрерывный цикл
+Contrast {:+}% ⇒ Контрастность {:+}%
+Convert to SmartArt ⇒ Преобразовать в SmartArt
+Copied the path ⇒ Путь скопирован
+Copy path ⇒ Копировать путь
+Coral Reef ⇒ Коралловый риф
+Corner Point ⇒ Угловой узел
+Correct accidental use of cAPS LOCK key ⇒ Устранять последствия случайного нажатия cAPS LOCK
+Couldn't save AutoRecover information: {e} ⇒ Не удалось сохранить данные автовосстановления: {e}
+Count the lamps you can see from your pillow ⇒ Сосчитайте фонари, которые видно с подушки
+Create Handouts ⇒ Создать выдачи
+Create New Theme Colors ⇒ Создать новые цвета темы
+Create New Theme Fonts ⇒ Создать новые шрифты темы
+Create PDF ⇒ Создать PDF
+Create PDF Document ⇒ Создать документ PDF
+Create a PDF Document ⇒ Создать документ PDF
+Crop 10% each side ⇒ Обрезать по 10% с каждой стороны
+Crop 20% each side ⇒ Обрезать по 20% с каждой стороны
+Crop to Shape ⇒ Обрезать по фигуре
+Currency ⇒ Денежный
+Curved Segment ⇒ Кривой сегмент
+Custom Layout ⇒ Особый макет
+Custom Range ⇒ Настраиваемый диапазон
+Custom Show ⇒ Произвольный показ
+Custom Show 1 ⇒ Произвольный показ 1
+Custom Shows ⇒ Произвольные показы
+Custom Show… ⇒ Произвольный показ…
+Custom Slide Show ⇒ Произвольный показ слайдов
+Custom character: ⇒ Свой знак:
+Custom width ⇒ Своя ширина
+Customize Colors… ⇒ Настроить цвета…
+Customize Fonts… ⇒ Настроить шрифты…
+Cycle Matrix ⇒ Циклическая матрица
+Dark appearance ⇒ Тёмное оформление
+Dark downward diagonal ⇒ Тёмная нисходящая диагональ
+Dark horizontal ⇒ Тёмная горизонтальная
+Dark upward diagonal ⇒ Тёмная восходящая диагональ
+Dark vertical ⇒ Тёмная вертикальная
+Dash Dot ⇒ Штрихпунктир
+Dashed downward diagonal ⇒ Пунктирная нисходящая диагональ
+Dashed horizontal ⇒ Пунктирная горизонтальная
+Dashed upward diagonal ⇒ Пунктирная восходящая диагональ
+Dashed vertical ⇒ Пунктирная вертикальная
+Dashes ⇒ Штрихи
+Date Placeholder ⇒ Заполнитель даты
+Date and time ⇒ Дата и время
+Decimal Tab ⇒ Табуляция по разделителю
+DeckCraft Presentation (*.deckcraft) ⇒ Презентация DeckCraft (*.deckcraft)
+DeckCraft can't export “{other}” ⇒ DeckCraft не может экспортировать «{other}»
+DeckCraft can't find “{text}”. ⇒ DeckCraft не находит «{text}».
+DeckCraft has no accounts: there is nothing to sign in to, and your presentations stay on your device. ⇒ В DeckCraft нет учётных записей: входить никуда не нужно, презентации остаются на вашем компьютере.
+DeckCraft prints through a PDF: it downloads, ready to print from your browser or PDF viewer. ⇒ DeckCraft печатает через PDF: файл сохраняется, и его можно напечатать из программы просмотра PDF.
+DeckCraft prints through a PDF: it opens in your PDF viewer, where you choose the printer. ⇒ DeckCraft печатает через PDF: он откроется в программе просмотра PDF, где вы выберете принтер.
+DeckCraft's own format: everything is kept ⇒ Собственный формат DeckCraft: сохраняется всё
+Decrease List Level ⇒ Понизить уровень списка
+Default Section ⇒ Раздел по умолчанию
+Default tab stops (in): ⇒ Шаг табуляции (дюймы):
+Delay: ⇒ Задержка:
+Delete Repeated Word ⇒ Удалить повтор
+Delete Segment ⇒ Удалить сегмент
+Delete Slide ⇒ Удалить слайд
+Delete Text ⇒ Удалить текст
+Delete cropped areas of pictures ⇒ Удалить обрезанные области рисунков
+Design Ideas ⇒ Идеи для оформления
+Designer ⇒ Конструктор
+Diagonal Down Border ⇒ Диагональная граница сверху вниз
+Diagonal Up Border ⇒ Диагональная граница снизу вверх
+Diagonal brick ⇒ Диагональный кирпич
+Diagonal cross ⇒ Диагональная сетка
+Dictionary: {} ⇒ Словарь: {}
+Discard Recovered Presentations ⇒ Удалить восстановленные презентации
+Display drawing guides on screen ⇒ Показывать направляющие
+Display grid on screen ⇒ Показывать сетку
+Distance from ground ⇒ Расстояние от земли
+Divot ⇒ Углубление
+Do not Autofit ⇒ Не выполнять автоподбор
+Do you want to save the changes you made to {what}? ⇒ Сохранить изменения в {what}?
+Don't show on title slide ⇒ Не показывать на титульном слайде
+Done and next ⇒ Готово, дальше
+Dotted diamond ⇒ Пунктирные ромбы
+Dotted grid ⇒ Пунктирная сетка
+Double Frame, Black ⇒ Двойная рамка, чёрная
+Download the file ⇒ Скачать файл
+Downward diagonal ⇒ Нисходящая диагональ
+Draw Borders ⇒ Нарисовать границы

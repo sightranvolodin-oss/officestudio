@@ -1,0 +1,385 @@
+Drop Shadow Rectangle ⇒ Прямоугольник с тенью
+Drum Roll ⇒ Барабанная дробь
+Duplicate Selected Slides ⇒ Дублировать выделенные слайды
+Duplicate Slide ⇒ Дублировать слайд
+Duration handle {} ⇒ Маркер длительности {}
+Dynamic Content ⇒ Динамическое содержимое
+E-mail (96 ppi): minimise document size for sharing ⇒ Электронная почта (96 ppi): минимальный размер для отправки
+Edit Alt Text… ⇒ Изменить замещающий текст…
+Edit Header & Footer ⇒ Изменить колонтитулы
+Edit Master ⇒ Изменить образец
+Edit Photo Album… ⇒ Изменить фотоальбом…
+Edit Points ⇒ Изменить узлы
+Edit Shape ⇒ Изменить фигуру
+Edit SmartArt Text ⇒ Изменить текст SmartArt
+Edit the data: first row = series names, first column = categories. ⇒ Измените данные: первая строка — имена рядов, первый столбец — категории.
+Email address: ⇒ Адрес электронной почты:
+Ember ⇒ Уголь
+End Review ⇒ Завершить рецензирование
+End Show ⇒ Завершить показ
+End arrow ⇒ Конечная стрелка
+End of slide show ⇒ Конец показа слайдов
+End of slide show, click to exit. ⇒ Конец показа слайдов. Щёлкните, чтобы выйти.
+End size ⇒ Размер конца
+End trim (s): ⇒ Обрезка в конце (с):
+Enter a scheme name. ⇒ Введите имя схемы.
+Enter a zoom percent ⇒ Введите масштаб в процентах
+Entrance ⇒ Вход
+Escape ⇒ Выход
+Evening Talk ⇒ Вечерняя беседа
+Exciting ⇒ Яркие
+Exit Edit Points ⇒ Закончить изменение узлов
+Expected and found ⇒ Ожидалось и найдено
+Explain a lock to someone who has never seen one ⇒ Объясните замок тому, кто его никогда не видел
+Export the presentation as: ⇒ Экспортировать презентацию как:
+Extra Large (1920 px wide) ⇒ Очень крупный (ширина 1920 пикс.)
+Eyedropper: click the slide (Esc cancels) ⇒ Пипетка: щёлкните слайд (Esc — отмена)
+Fade in (s): ⇒ Появление (с):
+Fade out (s): ⇒ Исчезание (с):
+Faint aurora ⇒ Слабое сияние
+Field Notes ⇒ Полевые заметки
+Field checklist ⇒ Список для выезда
+File (Alt+F) ⇒ Файл (Alt+F)
+File › {} needs an open presentation ⇒ Файл › {}: нужна открытая презентация
+Fill & Line ⇒ Заливка и граница
+Film Grain ⇒ Зернистость плёнки
+Find whole words only ⇒ Только слово целиком
+First Slide ⇒ Первый слайд
+Fit slide to current window ⇒ Вписать слайд в окно
+Fit to Window ⇒ По размеру окна
+Fit to slide ⇒ По размеру слайда
+Flat ⇒ Плоский
+Follow Path ⇒ По траектории
+Follow the layout ⇒ Как в макете
+Font name ⇒ Имя шрифта
+Font size must be a number ⇒ Размер шрифта должен быть числом
+Fonts in Presentation ⇒ Шрифты в презентации
+Footer Placeholder ⇒ Заполнитель нижнего колонтитула
+Footers ⇒ Нижние колонтитулы
+For rectangles and rounded rectangles ⇒ Для прямоугольников и скруглённых прямоугольников
+Format Background ⇒ Формат фона
+Format Background… ⇒ Формат фона…
+Format Painter (double-click to keep it on) ⇒ Формат по образцу (двойной щелчок — оставить включённым)
+Formatting State ⇒ Состояние форматирования
+Frame Slides ⇒ Обрамить слайды
+Frame shape ⇒ Форма рамки
+Framed picture beside the title ⇒ Рисунок в рамке рядом с заголовком
+Freeform ⇒ Полилиния
+Freeform {} ⇒ Полилиния {}
+Freeform: Scribble ⇒ Полилиния: рисованная кривая
+Freeform: Shape ⇒ Полилиния: фигура
+From Bottom ⇒ Снизу
+From Left ⇒ Слева
+From Right ⇒ Справа
+From Top ⇒ Сверху
+From bottom left ⇒ Снизу слева
+From bottom right ⇒ Снизу справа
+From center ⇒ Из центра
+From slide: ⇒ Со слайда:
+From the Sun to your sky ⇒ От Солнца до вашего неба
+From the top-left corner of the slide ⇒ От левого верхнего угла слайда
+From top left ⇒ Сверху слева
+From top right ⇒ Сверху справа
+Full Page Slides ⇒ Слайды во всю страницу
+Full-bleed picture, title on a band ⇒ Рисунок на весь слайд, заголовок на полосе
+Funnel ⇒ Воронка
+GIF encoding failed: {e} ⇒ Не удалось записать GIF: {e}
+Gear ⇒ Шестерёнка
+Get Text ⇒ Получить текст
+Globe ⇒ Глобус
+Glow Edges ⇒ Свечение краёв
+Go to Slide ⇒ Перейти к слайду
+Go to slide {} ⇒ Перейти к слайду {}
+Goal ⇒ Цель
+Gradient Range - Accent 1 ⇒ Градиентный диапазон — акцент 1
+Gradient Range - Accent 2 ⇒ Градиентный диапазон — акцент 2
+Gradient Range - Accent 3 ⇒ Градиентный диапазон — акцент 3
+Gradient Range - Accent 4 ⇒ Градиентный диапазон — акцент 4
+Gradient Range - Accent 5 ⇒ Градиентный диапазон — акцент 5
+Gradient Range - Accent 6 ⇒ Градиентный диапазон — акцент 6
+Grid Matrix ⇒ Табличная матрица
+Grid Options ⇒ Параметры сетки
+Grid Options… ⇒ Параметры сетки…
+Grid and Guides ⇒ Сетка и направляющие
+Group Objects ⇒ Группировать объекты
+Group {} ⇒ Группа {}
+HD (330 ppi): good quality for high-definition displays ⇒ HD (330 ppi): хорошее качество для экранов высокой чёткости
+Half ⇒ Половина
+Half Circle Organization Chart ⇒ Организационная диаграмма с полукругами
+Handout Master ⇒ Образец выдач
+Handout Placeholders ⇒ Заполнители выдач
+Handouts (1 slide per page) ⇒ Выдачи (1 слайд на странице)
+Handouts (2 slides per page) ⇒ Выдачи (2 слайда на странице)
+Handouts (3 slides per page) ⇒ Выдачи (3 слайда на странице)
+Handouts (4 slides per page) ⇒ Выдачи (4 слайда на странице)
+Handouts (6 slides per page) ⇒ Выдачи (6 слайдов на странице)
+Handouts (9 slides per page) ⇒ Выдачи (9 слайдов на странице)
+Hanging ⇒ Выступ
+Harbor ⇒ Гавань
+Hard-to-read text contrast ({:.1}:1) ⇒ Трудночитаемый текст: контраст ({:.1}:1)
+Header Placeholder ⇒ Заполнитель верхнего колонтитула
+Header and Footer ⇒ Колонтитулы
+Header and Footer… ⇒ Колонтитулы…
+Heading and body fonts for this presentation. ⇒ Шрифты заголовков и текста этой презентации.
+Heading font ⇒ Шрифт заголовков
+Heading sample  {major} ⇒ Образец заголовка  {major}
+Headlines ⇒ Заголовки
+Heavy ⇒ Сильная
+Height (in): ⇒ Высота (дюймы):
+Hello ⇒ Привет
+Hidden slides ⇒ Скрытые слайды
+Hide Background Graphics ⇒ Скрыть фоновые рисунки
+Hide During Show ⇒ Скрывать во время показа
+Hide Slide ⇒ Скрыть слайд
+Hide background graphics ⇒ Скрыть фоновые рисунки
+Highlight click ⇒ Выделение при щелчке
+Horizontal (in): ⇒ По горизонтали (дюймы):
+Horizontal Bullet List ⇒ Горизонтальный маркированный список
+Horizontal Hierarchy ⇒ Горизонтальная иерархия
+Horizontal Picture List ⇒ Горизонтальный список рисунков
+Horizontal brick ⇒ Горизонтальный кирпич
+Hourglass ⇒ Песочные часы
+How a lock works ⇒ Как устроен замок
+How would you describe this object and its context to someone who is blind or has low vision? ⇒ Как бы вы описали этот объект и его контекст человеку с нарушением зрения?
+Hyperlink to: ⇒ Гиперссылка на:
+Icon Gallery ⇒ Коллекция значков
+Idea ⇒ Идея
+In the Field ⇒ В поле
+Include hidden slides ⇒ Включая скрытые слайды
+Increase List Level ⇒ Повысить уровень списка
+Indent after text must be a number of inches ⇒ Отступ после текста должен быть числом дюймов
+Indent before text must be a number of inches ⇒ Отступ перед текстом должен быть числом дюймов
+Ink to Math (coming soon) ⇒ Рукописный ввод в формулу (скоро)
+Ink to Shape: turn drawn lines, rectangles, ovals and triangles into shapes ⇒ Рукописный ввод в фигуру: превращает нарисованные линии, прямоугольники, овалы и треугольники в фигуры
+Ink to Text (coming soon) ⇒ Рукописный ввод в текст (скоро)
+Inner ⇒ Внутренняя
+Insert Layout ⇒ Вставить макет
+Insert Picture ⇒ Вставить рисунок
+Insert Picture in SmartArt ⇒ Вставить рисунок в SmartArt
+Insert Picture in SmartArt… ⇒ Вставить рисунок в SmartArt…
+Insert Placeholder ⇒ Вставить заполнитель
+Insert Synonym ⇒ Вставить синоним
+Insert picture from file… ⇒ Вставить рисунок из файла…
+Insert slides from {name} after the current slide: ⇒ Вставить слайды из {name} после текущего слайда:
+Inserted {} slides from {path} ⇒ Вставлено слайдов: {}, из {path}
+Inspect Presentation ⇒ Инспектор презентации
+Inspect Shape ⇒ Инспектор фигуры
+Inspect Slide ⇒ Инспектор слайда
+Intense Effect ⇒ Сильный эффект
+Introduction ⇒ Введение
+Inverted Pyramid ⇒ Перевёрнутая пирамида
+Isosceles Triangle ⇒ Равнобедренный треугольник
+It was opened as a repaired copy; save it under a new name to keep the original file. ⇒ Открыта восстановленная копия; сохраните её под новым именем, чтобы не потерять исходный файл.
+JPEG Picture (*.jpg) ⇒ Рисунок JPEG (*.jpg)
+JPEG image (current slide) ⇒ Рисунок JPEG (текущий слайд)
+Join our community on Discord ⇒ Присоединяйтесь к сообществу в Discord
+Join type ⇒ Тип соединения
+Justify low ⇒ По ширине (снизу)
+Keep Source Formatting ⇒ Сохранить исходное форматирование
+Keep source formatting ⇒ Сохранить исходное форматирование
+Keeps the layout, fonts and pictures ⇒ Сохраняет макет, шрифты и рисунки
+Key ⇒ Ключ
+Landscape Orientation ⇒ Альбомная ориентация
+Large (1280 px wide) ⇒ Крупный (ширина 1280 пикс.)
+Large checkerboard ⇒ Крупная шахматная доска
+Large confetti ⇒ Крупное конфетти
+Large grid ⇒ Крупная сетка
+Laser ⇒ Лазер
+Last Slide ⇒ Последний слайд
+Last Slide Viewed ⇒ Последний просмотренный слайд
+Layout Placeholders ⇒ Заполнители макета
+Leave the slide background out: only what is on the slide is drawn ⇒ Без фона слайда: рисуется только то, что на слайде
+Left Tab ⇒ Табуляция по левому краю
+Less Brightness ⇒ Меньше яркости
+Less Contrast ⇒ Меньше контраста
+Lesson ⇒ Урок
+Light downward diagonal ⇒ Светлая нисходящая диагональ
+Light horizontal ⇒ Светлая горизонтальная
+Light upward diagonal ⇒ Светлая восходящая диагональ
+Light vertical ⇒ Светлая вертикальная
+Light! ⇒ Свет!
+Lights out ⇒ Свет выключен
+Line Drawing ⇒ Линейный рисунок
+Line spacing must be a number ⇒ Междустрочный интервал должен быть числом
+Linear Venn ⇒ Линейная диаграмма Венна
+List Commands ⇒ Список команд
+List Slides to Reuse ⇒ Список слайдов для повторного использования
+Long Dash ⇒ Длинный штрих
+Long Dash Dot ⇒ Длинный штрихпунктир
+Look up ⇒ Найти
+Loop Until Next Sound ⇒ Непрерывно до следующего звука
+Loop continuously until 'Esc' ⇒ Непрерывный цикл до нажатия Esc
+Loop forever ⇒ Повторять бесконечно
+Loop until Stopped ⇒ Непрерывно до остановки
+Loose ⇒ Свободный
+MIT OR Apache-2.0 · © 2026 ArtCraft Team and the DeckCraft contributors ⇒ MIT или Apache-2.0 · © 2026 команда ArtCraft и участники DeckCraft
+Made with DeckCraft — free and open source ⇒ Сделано в DeckCraft — бесплатно и с открытым кодом
+Magnetosphere ⇒ Магнитосфера
+Mail ⇒ Почта
+Manage Presentation ⇒ Управление презентацией
+Manual, on a bright star ⇒ Вручную, по яркой звезде
+Margins (pt) ⇒ Поля (пт)
+Master Layout ⇒ Макет образца
+Master Views ⇒ Режимы образцов
+Material ⇒ Материал
+Math ⇒ Математика
+Maximize content (else ensure fit) ⇒ Развернуть содержимое (иначе — вписать)
+Meadow ⇒ Луг
+Media Info ⇒ Сведения о медиафайле
+Medium (960 px wide) ⇒ Средний (ширина 960 пикс.)
+Megaphone ⇒ Мегафон
+Mention ⇒ Упоминание
+Merge Shapes ⇒ Объединить фигуры
+Message ⇒ Сообщение
+Metal Frame ⇒ Металлическая рамка
+Metal Oval ⇒ Металлический овал
+Metal Rounded Rectangle ⇒ Металлический скруглённый прямоугольник
+Minus ⇒ Минус
+Mirror type ⇒ Тип отражения
+Missing alternative text ⇒ Нет замещающего текста
+Missing slide title ⇒ Нет заголовка слайда
+Moderate Frame, Black ⇒ Средняя рамка, чёрная
+Moderate Frame, White ⇒ Средняя рамка, белая
+Moon ⇒ Луна
+More Brightness ⇒ Больше яркости
+More Colors… # ⇒ Другие цвета… #
+More Contrast ⇒ Больше контраста
+More presentations ⇒ Другие презентации
+More templates ⇒ Другие шаблоны
+More themes ⇒ Другие темы
+Motion Paths ⇒ Пути перемещения
+Mouse Click ⇒ Щелчок мышью
+Mouse Over ⇒ Наведение указателя
+Move Handle ⇒ Переместить маркер
+Move Insertion Point ⇒ Переместить курсор
+Move Point ⇒ Переместить узел
+Move Section ⇒ Переместить раздел
+Move Section Down ⇒ Переместить раздел вниз
+Move Section Up ⇒ Переместить раздел вверх
+Move Slide ⇒ Переместить слайд
+Multidirectional Cycle ⇒ Разнонаправленный цикл
+Music ⇒ Музыка
+Mute ⇒ Без звука
+Name and Title Organization Chart ⇒ Организационная диаграмма с именами и должностями
+Narrow horizontal ⇒ Узкая горизонтальная
+Narrow vertical ⇒ Узкая вертикальная
+Nested Target ⇒ Вложенная мишень
+New Photo Album… ⇒ Новый фотоальбом…
+New Presentation ⇒ Новая презентация
+New Slide ⇒ Создать слайд
+New Slide (⇧⌘N) ⇒ Создать слайд (⇧⌘N)
+New Text Box ⇒ Новая надпись
+New Window needs a slide ⇒ Для нового окна нужен слайд
+New Window needs an open presentation ⇒ Для нового окна нужна открытая презентация
+New show name: ⇒ Имя нового показа:
+Next Slide ⇒ Следующий слайд
+Next Window ⇒ Следующее окно
+Next ▶ ⇒ Далее ▶
+No Recolor ⇒ Без перекраски
+No accessibility issues found. People with disabilities should not have difficulty reading this document. ⇒ Проблем со специальными возможностями не найдено. У людей с ограниченными возможностями не должно быть трудностей при чтении.
+No comments. ⇒ Примечаний нет.
+No differences left. ⇒ Различий больше нет.
+No icons match. ⇒ Подходящих значков нет.
+No line ⇒ Нет линий
+No notes. ⇒ Заметок нет.
+No pictures yet ⇒ Рисунков пока нет
+No presentation is open. ⇒ Нет открытой презентации.
+No recent presentations match “{}”. ⇒ Нет недавних презентаций, подходящих под «{}».
+No slides. ⇒ Слайдов нет.
+No sound: {err} ⇒ Нет звука: {err}
+No synonyms for "{}". ⇒ Синонимов для «{}» нет.
+No themes or templates match “{}”. ⇒ Нет тем или шаблонов, подходящих под «{}».
+Nocturne ⇒ Ноктюрн
+Northern Lights ⇒ Северное сияние
+Not a copy of this presentation: slides are matched by position. ⇒ Это не копия этой презентации: слайды сопоставлены по порядку.
+Notes Master ⇒ Образец заметок
+Notes Page ⇒ Страница заметок
+Notes Pages ⇒ Страницы заметок
+Notes Placeholder 4 ⇒ Заполнитель заметок 4
+Notes Placeholders ⇒ Заполнители заметок
+Notes taken on the spot ⇒ Заметки на месте
+Nothing to print: every slide in the range is hidden. ⇒ Печатать нечего: все слайды в диапазоне скрыты.
+Number must be a whole number from 1 to 16 ⇒ Нужно целое число от 1 до 16
+Numbered ⇒ Нумерованный
+Offset Y ⇒ Смещение по Y
+Offset bottom ⇒ Смещение снизу
+Offset left ⇒ Смещение слева
+Offset right ⇒ Смещение справа
+Offset top ⇒ Смещение сверху
+On Click ⇒ По щелчку
+On Click of {name} ⇒ По щелчку на {name}
+On Click of… (none) ⇒ По щелчку на… (нет)
+On Mouse Click ⇒ По щелчку мышью
+One change ⇒ Одно изменение
+One metaphor, then the real thing ⇒ Одна метафора, затем сама суть
+Only the ones that change a decision ⇒ Только те, что меняют решение
+Open Arrow ⇒ Открытая стрелка
+Open Data ⇒ Открыть данные
+Open Dialog ⇒ Диалог открытия
+Open Path ⇒ Незамкнутый контур
+Open Recovered Presentations ⇒ Открыть восстановленные презентации
+Open a presentation from a folder (Ctrl+O) ⇒ Открыть презентацию из папки (Ctrl+O)
+Open another window on this presentation ⇒ Открыть ещё одно окно с этой презентацией
+Open file location ⇒ Открыть папку с файлом
+Open source under MIT OR Apache-2.0. Not affiliated with Microsoft. ⇒ Открытый код под лицензией MIT или Apache-2.0. Не связано с Microsoft.
+Open with what changed since last week. ⇒ Начните с того, что изменилось за неделю.
+Opened the presentation as a PDF to print ⇒ Презентация открыта как PDF для печати
+Opens in PowerPoint and other presentation apps ⇒ Открывается в PowerPoint и других программах для презентаций
+Opens on any device with a PDF viewer ⇒ Открывается на любом устройстве с программой просмотра PDF
+Order Objects ⇒ Порядок объектов
+Ordinals (1st) with superscript ⇒ Порядковые номера (1st) надстрочными знаками
+Organization Chart ⇒ Организационная диаграмма
+Other Sound… ⇒ Другой звук…
+Outer ⇒ Внешняя
+Outline (*.txt) ⇒ Структура (*.txt)
+Outline (.txt) ⇒ Структура (.txt)
+Outline View ⇒ Режим структуры
+Outlined diamond ⇒ Контурные ромбы
+Oval ends ⇒ Овальные концы
+Oxygen glows green and red; nitrogen adds blue and purple fringes. ⇒ Кислород светится зелёным и красным, азот добавляет синюю и фиолетовую кайму.
+PDF (*.pdf) ⇒ PDF (*.pdf)
+PDF document (.pdf) ⇒ Документ PDF (.pdf)
+PNG images (all slides) ⇒ Рисунки PNG (все слайды)
+PNG images (current slide) ⇒ Рисунок PNG (текущий слайд)
+Pack list for next time ⇒ Что взять в следующий раз
+Pane ⇒ Область
+Particles collide ⇒ Частицы сталкиваются
+Paste and Match Formatting ⇒ Вставить с форматированием назначения
+Paste or type an outline. Unindented lines become slide titles; tab-indented lines become bullets. ⇒ Вставьте или введите структуру. Строки без отступа станут заголовками слайдов, строки с табуляцией — пунктами списка.
+Pattern fill ⇒ Узорная заливка
+Pen Color ⇒ Цвет пера
+Pen Style ⇒ Стиль пера
+Pen Weight ⇒ Толщина пера
+Pencil Grayscale ⇒ Карандаш, оттенки серого
+Perspective Shadow, White ⇒ Тень в перспективе, белая
+Perspective heroic left facing ⇒ Перспектива снизу, влево
+Photo Album ⇒ Фотоальбом
+Photo Album options ⇒ Параметры фотоальбома
+Photo Album… ⇒ Фотоальбом…
+Pick a design for this slide. Ideas are generated on your device. ⇒ Выберите оформление для слайда. Идеи создаются на вашем компьютере.
+Pick a graphic; type one item per line. ⇒ Выберите рисунок; вводите по одному пункту в строке.
+Picture (PNG) ⇒ Рисунок (PNG)
+Picture Accent Process ⇒ Процесс с акцентами-рисунками
+Picture Caption List ⇒ Список рисунков с подписями
+Picture Style Gallery ⇒ Коллекция стилей рисунков
+Picture from File… ⇒ Рисунок из файла…
+Picture layout ⇒ Макет рисунка
+Picture left, text right ⇒ Рисунок слева, текст справа
+Picture or texture fill ⇒ Рисунок или текстура
+Picture right, text left ⇒ Рисунок справа, текст слева
+Picture source ⇒ Источник рисунка
+Pictures are already at or below that resolution ⇒ Разрешение рисунков уже не выше этого
+Pictures in album ⇒ Рисунки в альбоме
+Pie chart ⇒ Круговая диаграмма
+Pin ⇒ Булавка
+Pitch ⇒ Наклон
+Placeholders ⇒ Заполнители
+Places ⇒ Места
+Plaid ⇒ Шотландка
+Plan ⇒ План
+Play Across Slides ⇒ Воспроизводить на всех слайдах
+Play Full Screen ⇒ Во весь экран
+Play Narrations ⇒ Воспроизводить речевое сопровождение
+Play from Current Slide ⇒ С текущего слайда
+Play from Start ⇒ С начала
+Play the shape's media ⇒ Воспроизвести медиафайл фигуры

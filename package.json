@@ -124,5 +124,6 @@
     "gridcraft": "0.12.1",
     "deckcraft": "0.11.1",
     "cadcraft": "0.13.0"
-  }
+  },
+  "craftsI18n": "40cddb99f980576fd9f139fd6ed3b18c16fd81f2"
 }
