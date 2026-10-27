@@ -30,7 +30,8 @@ jobs:
         run: scripts/build-crafts.sh "$PWD/crafts" 2>&1 | tee build.log; exit ${PIPESTATUS[0]}
       - name: Report failure
         if: failure()
-        run: (grep -n -B2 -A14 -E '^(error|warning: unused)|error\[' build.log | head -150; tail -n 15 build.log) | sed 's/^/::error::/'; true
+        run: |
+          (grep -n -B2 -A14 -E '^error|error\[' build.log | head -150; tail -n 15 build.log) | sed 's/^/::error::/'; true
       - uses: actions/upload-artifact@v4
         with:
           name: crafts
