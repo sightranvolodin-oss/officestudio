@@ -70,7 +70,7 @@ function dwgToDxfNative(exe, srcPath) {
 
 // group codes the engine never reads: handles, owners/reactors, subclass markers, Z values, comments
 const DROP = new Set([5, 105, 330, 340, 350, 360, 100, 102, 30, 31, 32, 33, 34, 36, 37, 38, 39, 999]);
-const DROP_SECTIONS = new Set(['OBJECTS', 'CLASSES', 'THUMBNAILIMAGE', 'ACDSDATA']);
+const DROP_SECTIONS = new Set(['CLASSES', 'THUMBNAILIMAGE', 'ACDSDATA']);
 
 const DROP_TABLE = new Uint8Array(1100);
 for (const c of DROP) DROP_TABLE[c] = 1;
@@ -87,6 +87,7 @@ function compactDxf(file) {
   let carry = Buffer.alloc(0);
   let section = '';
   let afterSection = false;
+  let rec = '';
   let skip = false;
   let pos = 0;
   const sectionName = (d, a, b) => d.toString('latin1', a, b).trim();
@@ -125,7 +126,13 @@ function compactDxf(file) {
           // SECTION / ENDSEC detection without building strings for every entity
           if (l === 7 && d[a] === 83 && d.toString('latin1', a, b) === 'SECTION') { afterSection = true; skip = false; }
           else if (l === 6 && d[a] === 69 && d.toString('latin1', a, b) === 'ENDSEC') { afterSection = false; skip = false; section = ''; }
-          else { afterSection = false; if (skip) continue; }
+          else {
+            afterSection = false;
+            // record type: only LAYOUT objects are kept in OBJECTS (sheet names, sizes, links to blocks)
+            rec = l === 6 && d[a] === 76 ? d.toString('latin1', a, b) : l === 5 && d[a] === 66 ? d.toString('latin1', a, b) : '';
+            if (skip) continue;
+            if (section === 'OBJECTS' && rec !== 'LAYOUT') continue;
+          }
           out[o++] = 48; out[o++] = 10;
           o += d.copy(out, o, a, b); out[o++] = 10;
           continue;
@@ -136,7 +143,9 @@ function compactDxf(file) {
           skip = DROP_SECTIONS.has(section);
         } else {
           if (skip) continue;
-          if (code < 1100 && DROP_TABLE[code] === 1 && section !== 'HEADER') continue;
+          if (section === 'OBJECTS') { if (rec !== 'LAYOUT') continue; }
+          else if (code === 330 && rec === 'BLOCK') { /* block record handle: links layouts to their blocks */ }
+          else if (code < 1100 && DROP_TABLE[code] === 1 && section !== 'HEADER') continue;
           if (code >= 1000 && code <= 1071 && section !== 'TABLES') continue;
         }
         // copy code digits and value

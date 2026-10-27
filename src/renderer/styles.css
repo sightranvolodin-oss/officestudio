@@ -377,3 +377,10 @@ body.dragging #drop-hint { display: grid; }
 .print-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 6px; }
 .print-actions button { height: 34px; padding: 0 16px; border-radius: 8px; border: 1px solid var(--line-strong); background: #fff; cursor: pointer; }
 .print-actions button.primary { background: #1f9d6b; color: #fff; border-color: #1f9d6b; }
+
+/* drawing: Model / layout tabs */
+.cad-ltabs { display: flex; gap: 2px; padding: 0 8px; background: #2a2f38; border-top: 1px solid #1b1e24; flex: none; overflow-x: auto; }
+.cad-ltabs[hidden] { display: none; }
+.cad-ltabs .ltab { border: 0; background: none; color: #aab2c0; padding: 5px 14px; font: 12.5px 'Segoe UI', Arial, sans-serif; cursor: pointer; border-radius: 0 0 6px 6px; white-space: nowrap; }
+.cad-ltabs .ltab:hover { color: #fff; background: #353b46; }
+.cad-ltabs .ltab.on { background: #fafbfc; color: #1f2430; font-weight: 600; }

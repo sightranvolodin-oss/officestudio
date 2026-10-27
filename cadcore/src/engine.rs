@@ -203,6 +203,10 @@ pub struct Drawing {
     pub skipped: usize,
     pub sel: Vec<f32>,
     pub units: i64,
+    pub layouts: Vec<Layout>,
+    /// GPU buffers + texts of the sheet objects of the open layout (paper coordinates)
+    pub paper: Buffers,
+    pub paper_texts: Vec<TextOut>,
 }
 
 impl Default for Drawing {
@@ -230,6 +234,9 @@ impl Default for Drawing {
             skipped: 0,
             sel: Vec::new(),
             units: 0,
+            layouts: Vec::new(),
+            paper: Buffers::default(),
+            paper_texts: Vec::new(),
         }
     }
 }
@@ -242,7 +249,7 @@ impl Drawing {
     pub fn from_dxf(bytes: &[u8]) -> Result<Drawing, String> {
         let text = dxf::decode(bytes)?;
         let p = dxf::parse(&text);
-        let mut d = Drawing { layers: p.layers, blocks: p.blocks, skipped: p.skipped, units: p.units, ..Default::default() };
+        let mut d = Drawing { layers: p.layers, blocks: p.blocks, skipped: p.skipped, units: p.units, layouts: p.layouts, ..Default::default() };
         d.ents = p.ents.into_iter().map(Some).collect();
         d.reindex();
         d.choose_origin();
@@ -499,6 +506,33 @@ impl Drawing {
         self.dirty.clear();
         self.hide.clear();
         self.overlay = Buffers::default();
+    }
+
+    /// Tessellates the paper-space objects (frames, stamps, notes) of a layout, in paper units
+    pub fn build_paper(&mut self, i: usize) {
+        let mut sink = LayerSink::new(P::default());
+        let tol = self.layouts.get(i).map(|l| (l.w.hypot(l.h) / 20000.0).max(1e-4)).unwrap_or(0.01);
+        let mut t = Tess { blocks: &self.blocks, cache: &mut self.cache, tol };
+        if let Some(l) = self.layouts.get(i) {
+            for e in &l.ents {
+                let (c, lm) = modes(e, false);
+                sink.between_entities();
+                t.ent_geo(&e.geo, &M::ID, c, lm, e.alpha, &mut sink, 0);
+            }
+        }
+        let (buf, texts) = sink.finish();
+        self.paper = buf;
+        self.paper_texts = texts;
+    }
+    pub fn paper_texts_flat(&self) -> (Vec<f64>, String) {
+        let mut f = Vec::new();
+        let mut parts: Vec<&str> = Vec::new();
+        for t in &self.paper_texts {
+            let d = &t.t;
+            f.extend_from_slice(&[d.p.x, d.p.y, d.h, d.rot, d.halign, d.valign, if d.mtext { 1.0 } else { 0.0 }, d.wf, t.layer as f64, t.rgb.map(|v| v as f64).unwrap_or(-1.0), t.alpha.map(|a| a as f64).unwrap_or(-1.0), d.mask.map(|m| m as f64).unwrap_or(-1.0), d.mk]);
+            parts.push(&d.text);
+        }
+        (f, parts.join("\u{1}"))
     }
 
     /// Tessellate entities changed since the last base build

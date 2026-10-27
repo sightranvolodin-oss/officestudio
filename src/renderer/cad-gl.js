@@ -129,8 +129,9 @@ void main() { o = vec4(vCol * vA, vA); }`;
     /** upload a buffer set chunk by chunk straight from wasm memory (no intermediate copies) */
     upload(name, eng) {
       const gl = this.gl;
+      if (!this.sets[name]) this.sets[name] = this.makeSet();
       const set = this.sets[name];
-      const pre = name === 'base' ? 'base' : 'ov';
+      const pre = { base: 'base', overlay: 'ov', paper: 'paper' }[name];
       const groups = new Uint32Array(eng[pre + '_groups']());
       [set.lines, set.tris].forEach((o, kind) => {
         const total = eng[pre + '_total'](kind);
@@ -182,10 +183,27 @@ void main() { o = vec4(vCol * vA, vA); }`;
      * view: {cx, cy, s, W, H}; origin [ox, oy]; layers: [{color:[r,g,b], visible}] by index;
      * fg: [r,g,b]; sel: {matrix?: [a,b,c,d,e,f] world-space, color}
      */
-    draw(view, origin, layers, fg, sel, mode = 0) {
+    /**
+     * opts.rect = [x, y, w, h] (CSS px from the top-left): draw into that rectangle only (layout
+     * viewports); view.W/H are then the rectangle size. opts.noClear keeps what is already drawn.
+     * opts.sets = which buffer sets to draw (default base + overlay).
+     */
+    draw(view, origin, layers, fg, sel, mode = 0, opts = {}) {
       const gl = this.gl;
-      gl.clearColor(0, 0, 0, 0);
-      gl.clear(gl.COLOR_BUFFER_BIT);
+      const d = this.canvas.width / Math.max(1, view.fullW || view.W);
+      if (!opts.noClear) {
+        gl.viewport(0, 0, this.canvas.width, this.canvas.height);
+        gl.disable(gl.SCISSOR_TEST);
+        gl.clearColor(0, 0, 0, 0);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+      }
+      if (opts.rect) {
+        const [rx, ry, rw, rh] = opts.rect.map((v) => Math.round(v * d));
+        const y = this.canvas.height - ry - rh;
+        gl.viewport(rx, y, rw, rh);
+        gl.enable(gl.SCISSOR_TEST);
+        gl.scissor(Math.max(0, rx), Math.max(0, y), Math.max(0, rw), Math.max(0, rh));
+      }
       gl.useProgram(this.prog);
       // premultiplied alpha blending for transparent layers / objects
       gl.enable(gl.BLEND);
@@ -200,8 +218,9 @@ void main() { o = vec4(vCol * vA, vA); }`;
       gl.activeTexture(gl.TEXTURE0);
       gl.bindTexture(gl.TEXTURE_2D, this.layerTex);
       gl.uniform1i(this.u.uLayers, 0);
-      for (const name of ['base', 'overlay']) {
+      for (const name of opts.sets || ['base', 'overlay']) {
         const set = this.sets[name];
+        if (!set) continue;
         const g = set.groups;
         // fills first (in drawing order), then lines on top
         for (const pass of [1, 0]) {
@@ -229,6 +248,10 @@ void main() { o = vec4(vCol * vA, vA); }`;
         gl.drawArrays(gl.LINES, 0, this.sel.count);
       }
       gl.bindVertexArray(null);
+      if (opts.rect) {
+        gl.disable(gl.SCISSOR_TEST);
+        gl.viewport(0, 0, this.canvas.width, this.canvas.height);
+      }
     }
   }
 
@@ -263,7 +286,7 @@ void main() { o = vec4(vCol * vA, vA); }`;
       this.software = true;
     }
     upload(name, eng) {
-      const pre = name === 'base' ? 'base' : 'ov';
+      const pre = { base: 'base', overlay: 'ov', paper: 'paper' }[name];
       const groups = new Uint32Array(eng[pre + '_groups']());
       const mk = (kind) => {
         const total = eng[pre + '_total'](kind);
@@ -297,10 +320,13 @@ void main() { o = vec4(vCol * vA, vA); }`;
     draw(view, origin, layers, fg, sel, mode = 0, opts = {}) {
       const ctx = this.ctx, d = this.dpr || 1;
       ctx.setTransform(1, 0, 0, 1, 0, 0);
-      ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+      if (!opts.noClear) ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+      const [ox, oy] = opts.rect ? [opts.rect[0], opts.rect[1]] : [0, 0];
+      ctx.save();
+      if (opts.rect) { ctx.beginPath(); ctx.rect(d * ox, d * oy, d * opts.rect[2], d * opts.rect[3]); ctx.clip(); }
       const s = view.s;
       // origin-relative world -> device pixels
-      ctx.setTransform(d * s, 0, 0, -d * s, d * (view.W / 2 - (view.cx - origin[0]) * s), d * (view.H / 2 + (view.cy - origin[1]) * s));
+      ctx.setTransform(d * s, 0, 0, -d * s, d * (ox + view.W / 2 - (view.cx - origin[0]) * s), d * (oy + view.H / 2 + (view.cy - origin[1]) * s));
       const lw = (opts.linePx || 1) / s;
       const alphaOf = (v, L) => {
         const a = (v >>> 24) & 255;
@@ -327,8 +353,9 @@ void main() { o = vec4(vCol * vA, vA); }`;
       const x1 = view.cx - origin[0] - view.W / 2 / s, x2 = view.cx - origin[0] + view.W / 2 / s;
       const y1 = view.cy - origin[1] - view.H / 2 / s, y2 = view.cy - origin[1] + view.H / 2 / s;
       ctx.lineWidth = lw;
-      for (const name of ['base', 'overlay']) {
+      for (const name of opts.sets || ['base', 'overlay']) {
         const set = this.sets[name];
+        if (!set || !set.lines) continue;
         const g = set.groups;
         for (const pass of [1, 0]) {
           for (let i = 0; i < g.length; i += 5) {
@@ -375,6 +402,7 @@ void main() { o = vec4(vCol * vA, vA); }`;
         for (let v = 0; v < this.sel.count; v += 2) { ctx.moveTo(p[v * 2], p[v * 2 + 1]); ctx.lineTo(p[v * 2 + 2], p[v * 2 + 3]); }
         ctx.stroke();
       }
+      ctx.restore();
     }
   }
 

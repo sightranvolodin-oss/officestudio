@@ -155,6 +155,19 @@ impl Engine {
     pub fn base_chunk_pos(&self, i: u32) -> u32 { self.d.base.chunks.get(i as usize).map(|c| c.0.as_ptr() as u32).unwrap_or(0) }
     pub fn base_chunk_col(&self, i: u32) -> u32 { self.d.base.chunks.get(i as usize).map(|c| c.1.as_ptr() as u32).unwrap_or(0) }
     pub fn base_chunk_lay(&self, i: u32) -> u32 { self.d.base.chunks.get(i as usize).map(|c| c.2.as_ptr() as u32).unwrap_or(0) }
+    pub fn paper_groups(&self) -> Vec<u32> { self.d.paper.groups.clone() }
+    pub fn paper_total(&self, kind: u32) -> u32 { self.d.paper.total[(kind & 1) as usize] }
+    pub fn paper_chunk_pos(&self, i: u32) -> u32 { self.d.paper.chunks.get(i as usize).map(|c| c.0.as_ptr() as u32).unwrap_or(0) }
+    pub fn paper_chunk_col(&self, i: u32) -> u32 { self.d.paper.chunks.get(i as usize).map(|c| c.1.as_ptr() as u32).unwrap_or(0) }
+    pub fn paper_chunk_lay(&self, i: u32) -> u32 { self.d.paper.chunks.get(i as usize).map(|c| c.2.as_ptr() as u32).unwrap_or(0) }
+    /// layouts («Лист» tabs): [{name, w, h, vps: [{cx, cy, w, h, mx, my, vh, twist, on}]}]
+    pub fn layouts_json(&self) -> String {
+        let v: Vec<_> = self.d.layouts.iter().map(|l| json!({ "name": l.name, "w": l.w, "h": l.h, "vps": l.vps, "objects": l.ents.len() })).collect();
+        serde_json::to_string(&v).unwrap()
+    }
+    pub fn build_paper(&mut self, i: u32) { self.d.build_paper(i as usize) }
+    pub fn paper_texts(&self) -> Vec<f64> { self.d.paper_texts_flat().0 }
+    pub fn paper_texts_str(&self) -> String { self.d.paper_texts_flat().1 }
     pub fn ov_groups(&self) -> Vec<u32> { self.d.overlay.groups.clone() }
     pub fn ov_total(&self, kind: u32) -> u32 { self.d.overlay.total[(kind & 1) as usize] }
     pub fn ov_chunk_pos(&self, i: u32) -> u32 { self.d.overlay.chunks.get(i as usize).map(|c| c.0.as_ptr() as u32).unwrap_or(0) }

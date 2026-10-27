@@ -44,3 +44,11 @@ fn measure_shapes() {
         println!("{}", e.sel_summary(&[i]));
     }
 }
+#[test]
+fn layouts() {
+    let Ok(f) = std::env::var("CAD_FILE") else { return };
+    let mut e = cadcore::Engine::new();
+    e.load_dxf(&std::fs::read(f).unwrap()).unwrap();
+    println!("{}", e.layouts_json());
+    for i in 0..3 { e.build_paper(i); println!("paper {i}: {:?} texts {}", e.paper_groups(), e.paper_texts().len() / 13); }
+}

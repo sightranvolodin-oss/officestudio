@@ -122,7 +122,9 @@
       this.input = el('input', { type: 'text', spellcheck: 'false', placeholder: 'введите команду (L, PL, C, REC, A, T, M, CO, RO, DIM, E…) или координаты' });
       this.coords = el('span', { class: 'coords' });
       const cmdbar = el('div', { class: 'cad-cmd' }, [this.prompt, this.input, this.coords]);
-      root.append(this.buildToolbar(), el('div', { class: 'cad-main' }, [el('div', { style: { flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, position: 'relative' } }, [this.wrap, cmdbar]), this.side]), this.buildStatus());
+      this.ltabs = el('div', { class: 'cad-ltabs' });
+      this.ltabs.hidden = true;
+      root.append(this.buildToolbar(), el('div', { class: 'cad-main' }, [el('div', { style: { flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, position: 'relative' } }, [this.wrap, this.ltabs, cmdbar]), this.side]), this.buildStatus());
       this.info.textContent = 'Загрузка движка…';
 
       this.ready = CadCore.load().then(() => this.init(data)).catch((e) => {
@@ -164,6 +166,7 @@
       else this.view = { cx: 148, cy: 105, s: Math.min(this.W / 340, this.H / 250) || 2 };
       this.buildSide();
       this.syncUnitBtn();
+      this.buildLayoutTabs();
       const ms = Math.round(performance.now() - t0);
       this.info.textContent = (this.loadStats ? `Объектов: ${this.eng.count().toLocaleString('ru')} · открыт за ${ms} мс · ` : '') + (this.gl.software ? 'программная отрисовка' : 'видеоускорение');
       this.redraw();
@@ -680,6 +683,7 @@
     }
     renderNow(theme) {
       if (!this.eng || !this.W) return;
+      if (this.layoutIdx >= 0 && !theme) { this.renderLayout(); return; }
       const th = theme || this.theme;
       this.drawBg(th, !theme);
       const layersArr = this.layerByIndex || [];
@@ -731,19 +735,29 @@
       ctx.beginPath(); ctx.moveTo(18, this.H - 18); ctx.lineTo(18, this.H - 48); ctx.stroke();
       ctx.fillStyle = '#8a94a6'; ctx.font = '10px Segoe UI'; ctx.fillText('X', 52, this.H - 14); ctx.fillText('Y', 14, this.H - 52);
     }
-    drawTexts(th) {
-      const ctx = this.textCanvas.getContext('2d');
+    /**
+     * o (optional, for layouts / printing): { canvas, texts, view, W, H, dpr, offset: [x, y], clip: [x, y, w, h], noClear, mode }
+     */
+    drawTexts(th, o = {}) {
+      const canvas = o.canvas || this.textCanvas;
+      const ctx = canvas.getContext('2d');
       ctx.setTransform(1, 0, 0, 1, 0, 0);
-      ctx.clearRect(0, 0, this.textCanvas.width, this.textCanvas.height);
+      if (!o.noClear) ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.globalAlpha = 1;
-      const f = this.texts.f, strs = this.texts.s;
+      const T = o.texts || this.texts;
+      const f = T.f, strs = T.s;
       const n = Math.min(strs.length, f.length / TS);
       if (!n) return;
-      const s = this.view.s, d = this.dpr;
-      const v = this.visibleBox();
+      const view = o.view || this.view, W = o.W || this.W, H = o.H || this.H;
+      const [offX, offY] = o.offset || [0, 0];
+      const s = view.s, d = o.dpr || this.dpr;
+      const w2s = (p) => ({ x: (p.x - view.cx) * s + W / 2 + offX, y: H / 2 - (p.y - view.cy) * s + offY });
+      const v = { x1: view.cx - W / 2 / s, x2: view.cx + W / 2 / s, y1: view.cy - H / 2 / s, y2: view.cy + H / 2 / s };
+      ctx.save();
+      if (o.clip) { ctx.beginPath(); ctx.rect(o.clip[0] * d, o.clip[1] * d, o.clip[2] * d, o.clip[3] * d); ctx.clip(); }
       const fgHex = th.fg;
       const L = this.layerByIndex;
-      const mode = this.colorMode(th);
+      const mode = o.mode != null ? o.mode : this.colorMode(th);
       const lh = 72 * 1.6;
       ctx.font = '100px Arial, "Segoe UI", sans-serif';
       let drawn = 0;
@@ -768,7 +782,7 @@
           if (isNeutral(rawHex) || mode >= 2) color = luminance(maskHex) > 0.5 ? '#000000' : '#ffffff';
         }
         const rot = f[o + 3], ha = f[o + 4], va = f[o + 5], mtext = f[o + 6] === 1, wf = f[o + 7] || 1;
-        const sp = this.w2s({ x, y });
+        const sp = w2s({ x, y });
         const k = (h * s) / 72;
         ctx.setTransform(d * k * wf * Math.cos(-rot * D2R), d * k * wf * Math.sin(-rot * D2R), -d * k * Math.sin(-rot * D2R), d * k * Math.cos(-rot * D2R), d * sp.x, d * sp.y);
         ctx.fillStyle = color;
@@ -802,6 +816,7 @@
         for (let j = 0; j < lines.length; j++) ctx.fillText(lines[j], 0, y0 + j * lh);
         if (++drawn > 30000) break;
       }
+      ctx.restore();
     }
 
     /** overlay: pencil marks, grips, rubber band previews, cursor */
@@ -809,7 +824,7 @@
       const ctx = this.over.getContext('2d');
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.clearRect(0, 0, this.over.width, this.over.height);
-      if (!this.eng) return;
+      if (!this.eng || this.layoutIdx >= 0) return;
       if (this.findMark) {
         const m = this.findMark, sp = this.w2s(m);
         const r = Math.max(14, m.h * this.view.s * 1.2);
@@ -987,6 +1002,7 @@
       this.input.value = '';
       if (!this.eng) return;
       if (name === 'select' || !name) { this.cmd = null; this.setPrompt('Команда:'); this.syncCmdBtns(); this.renderNow(); return; }
+      if (name && this.layoutIdx >= 0) { toast('На листе можно смотреть и печатать. Чтобы рисовать или измерять, откройте вкладку «Модель».'); return; }
       if (['move', 'copy', 'rotate', 'mirror'].includes(name) && !this.sel.size) {
         this.cmd = { name: 'pickfor', then: name, pts: [] };
         this.setPrompt('Выберите объекты и нажмите Enter:');
@@ -1258,6 +1274,7 @@
       this.info.textContent = this.sel.size ? `Выделено: ${this.sel.size.toLocaleString('ru')}` : '';
     }
     zoomExtents() {
+      if (this.layoutIdx >= 0) { this.view = this.fitPaperView(this.layouts[this.layoutIdx]); this.redraw(); return; }
       const b = this.eng.view_extents(true);
       if (b.length && b[4] > 0 && !this.strayNoted) { this.strayNoted = true; UI.toast(`Не учтено при «Показать всё»: ${b[4]} объект(ов) далеко за пределами чертежа`, null, 5000); }
       if (!b.length) { this.view = { cx: 148, cy: 105, s: Math.min(this.W / 340, this.H / 250) || 2 }; this.redraw(); return; }
@@ -1323,6 +1340,19 @@
       o.addEventListener('mouseleave', () => { this.mouse.inside = false; this.drawOverlay(); });
       o.addEventListener('dblclick', (e) => {
         if (e.button === 1) return this.zoomExtents();
+        if (this.layoutIdx >= 0) {
+          const q = pos(e);
+          const r = (this.lastVpRects || []).find(({ rect: [rx, ry, rw, rh] }) => q.x >= rx && q.x <= rx + rw && q.y >= ry && q.y <= ry + rh);
+          if (r) {
+            const [rx, ry, rw, rh] = r.rect;
+            const target = { cx: r.vview.cx + (q.x - rx - rw / 2) / r.vview.s, cy: r.vview.cy - (q.y - ry - rh / 2) / r.vview.s, s: r.vview.s };
+            this.setLayout(-1);
+            this.view = target;
+            this.redraw();
+            toast('Открыта модель в этом месте. Вернуться к листу — вкладка внизу.');
+          }
+          return;
+        }
         if (this.cmd && this.cmd.name === 'pline') return this.finishCmd();
         const p = pos(e), w = this.s2w(p.x, p.y);
         const i = this.eng.pick(w.x, w.y, 6 / this.view.s);
@@ -1333,6 +1363,7 @@
       o.addEventListener('mousedown', (e) => {
         this.wrap.focus({ preventScroll: true });
         const p = pos(e);
+        if (this.layoutIdx >= 0) return this.startPan(e, p); // sheets are for viewing: any button pans
         if (e.button === 1 || e.button === 2) return this.startPan(e, p);
         if (e.button !== 0) return;
         if (this.cmd && this.cmd.name === 'pencil') return this.drawInk(e);
@@ -1503,30 +1534,143 @@
       this.replace(i, n);
     }
 
+    // ------------------------------------------------------------ layouts («Лист» tabs)
+    buildLayoutTabs() {
+      this.layouts = JSON.parse(this.eng.layouts_json());
+      this.layoutIdx = -1;
+      if (!this.layouts.length) { this.ltabs.hidden = true; return; }
+      this.ltabs.hidden = false;
+      this.ltabs.innerHTML = '';
+      const mk = (label, i) => {
+        const b = el('button', { class: 'ltab' + (i === this.layoutIdx ? ' on' : ''), text: label, title: i < 0 ? 'Пространство модели' : `Лист «${label}» — ${Math.round(this.layouts[i].w)} × ${Math.round(this.layouts[i].h)} мм, видовых экранов: ${this.layouts[i].vps.length}` });
+        b.addEventListener('click', () => this.setLayout(i));
+        this.ltabs.append(b);
+      };
+      mk('Модель', -1);
+      this.layouts.forEach((l, i) => mk(l.name, i));
+    }
+    setLayout(i) {
+      if (i === this.layoutIdx || i >= (this.layouts || []).length) return;
+      if (this.cmd) this.startCmd(null);
+      if (this.layoutIdx < 0) this.modelView = { ...this.view };
+      else this.layouts[this.layoutIdx].view = { ...this.view };
+      this.layoutIdx = i;
+      [...this.ltabs.children].forEach((b, k) => b.classList.toggle('on', k - 1 === i));
+      if (i < 0) {
+        this.view = this.modelView || this.view;
+        this.wrap.classList.remove('paper-mode');
+      } else {
+        const L = this.layouts[i];
+        this.eng.build_paper(i);
+        this.gl.upload('paper', this.eng);
+        const pts = this.eng.paper_texts_str();
+        this.paperTexts = { f: this.eng.paper_texts(), s: pts ? pts.split('\u0001') : [] };
+        this.sel.clear(); this.syncSel(); this.buildProps();
+        this.view = L.view || this.fitPaperView(L);
+        this.wrap.classList.add('paper-mode');
+        if (!L.vps.length && !L.objects) toast(`Лист «${L.name}» пустой`);
+      }
+      this.renderNow();
+      this.drawOverlay();
+    }
+    fitPaperView(L) {
+      const s = Math.min((this.W * 0.92) / L.w, (this.H * 0.92) / L.h);
+      return { cx: L.w / 2, cy: L.h / 2, s };
+    }
+    /** draws the current layout: model through each viewport, then the sheet objects. t = render target */
+    renderLayoutTo(t) {
+      const L = this.layouts[this.layoutIdx];
+      const v = t.view, W = t.W, H = t.H;
+      const fg = hexRgb(t.th.fg);
+      const layers = this.layerByIndex || [];
+      const toS = (x, y) => ({ x: (x - v.cx) * v.s + W / 2, y: H / 2 - (y - v.cy) * v.s });
+      let first = true;
+      const rects = [];
+      for (const vp of L.vps) {
+        const a = toS(vp.cx - vp.w / 2, vp.cy + vp.h / 2);
+        const rect = [a.x, a.y, vp.w * v.s, vp.h * v.s];
+        if (rect[0] > W || rect[1] > H || rect[0] + rect[2] < 0 || rect[1] + rect[3] < 0 || vp.vh <= 0) continue;
+        const vs = v.s * (vp.h / vp.vh);
+        const vview = { cx: vp.mx, cy: vp.my, s: vs, W: rect[2], H: rect[3], fullW: W };
+        t.gv.draw(vview, this.origin, layers, fg, null, t.mode, { rect, noClear: !first, linePx: t.linePx });
+        first = false;
+        rects.push({ rect, vview });
+      }
+      t.gv.draw({ cx: v.cx, cy: v.cy, s: v.s, W, H, fullW: W }, [0, 0], layers, fg, null, t.mode, { noClear: !first, sets: ['paper'], linePx: t.linePx });
+      // texts: model texts inside every viewport, then the sheet's own texts
+      let clear = true;
+      for (const r of rects) {
+        this.drawTexts(t.th, { canvas: t.textCanvas, view: r.vview, W: r.rect[2], H: r.rect[3], dpr: t.dpr, offset: [r.rect[0], r.rect[1]], clip: r.rect, noClear: !clear, mode: t.mode });
+        clear = false;
+      }
+      if (this.paperTexts && this.paperTexts.f.length) this.drawTexts(t.th, { canvas: t.textCanvas, texts: this.paperTexts, view: v, W, H, dpr: t.dpr, noClear: !clear, mode: t.mode });
+      else if (clear) { const c = t.textCanvas.getContext('2d'); c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, t.textCanvas.width, t.textCanvas.height); }
+      return rects;
+    }
+    renderLayout() {
+      const L = this.layouts[this.layoutIdx];
+      const th = makeTheme('#ffffff');
+      // grey desk, white sheet with a shadow
+      const b = this.bgCanvas.getContext('2d');
+      b.setTransform(1, 0, 0, 1, 0, 0);
+      b.fillStyle = '#5e6470';
+      b.fillRect(0, 0, this.bgCanvas.width, this.bgCanvas.height);
+      const d = this.dpr, v = this.view;
+      const p0 = this.w2s({ x: 0, y: L.h }), pw = L.w * v.s, ph = L.h * v.s;
+      b.setTransform(d, 0, 0, d, 0, 0);
+      b.fillStyle = 'rgba(0,0,0,.35)';
+      b.fillRect(p0.x + 4, p0.y + 4, pw, ph);
+      b.fillStyle = '#ffffff';
+      b.fillRect(p0.x, p0.y, pw, ph);
+      const rects = this.renderLayoutTo({ gv: this.gl, textCanvas: this.textCanvas, view: v, W: this.W, H: this.H, dpr: d, th, mode: this.colorOpts.mono ? 2 : 1 });
+      // viewport frames
+      const tc = this.textCanvas.getContext('2d');
+      tc.setTransform(d, 0, 0, d, 0, 0);
+      tc.strokeStyle = 'rgba(80, 90, 110, .55)'; tc.lineWidth = 1;
+      for (const r of rects) tc.strokeRect(Math.round(r.rect[0]) + 0.5, Math.round(r.rect[1]) + 0.5, r.rect[2], r.rect[3]);
+      this.lastVpRects = rects;
+    }
+    /** double click in a viewport: open the model at that place */
+    vpAt(x, y) {
+      for (const r of this.lastVpRects || []) {
+        const [rx, ry, rw, rh] = r.rect;
+        if (x >= rx && x <= rx + rw && y >= ry && y <= ry + rh) return { x: r.vview.cx + (x - rx - rw / 2) / r.vview.s, y: r.vview.cy - (y - ry - rh / 2) / r.vview.s, s: r.vview.s * (this.W / rw > 1 ? 1 : 1) };
+      }
+      return null;
+    }
+
     // ------------------------------------------------------------ print / PDF
     /** opens the print dialog; `region` = world box picked with «Рамка» */
     async printDialog(region) {
       if (!this.eng) return;
       const o = (this.printOpts = this.printOpts || { what: 'all', paper: 'A3', orient: 'auto', scale: 'fit', custom: 500, color: 'color', lw: '0.18', title: true });
       if (region) o.what = 'window';
+      const inSheet = this.layoutIdx >= 0;
+      if (inSheet) o.what = 'sheet';
+      else if (o.what === 'sheet') o.what = 'all';
       const unit = this.unitName();
       const body = el('div', { class: 'print-form' });
       const row = (label, input) => body.append(el('div', { class: 'field' }, [el('label', { text: label }), input]));
       const sel = (name, options) => { const s = el('select'); options.forEach(([v, t]) => s.append(el('option', { value: v, text: t }))); s.value = o[name]; s.addEventListener('change', () => { o[name] = s.value; upd(); }); return s; };
-      const what = sel('what', [['all', 'Весь чертёж (видимые слои)'], ['view', 'Текущий вид на экране'], ['window', region || this.printRegion ? 'Рамка (выбрана)' : 'Рамка — выбрать на чертеже…']]);
+      const what = inSheet
+        ? sel('what', [['sheet', `Лист «${this.layouts[this.layoutIdx].name}» целиком, 1:1`]])
+        : sel('what', [['all', 'Весь чертёж (видимые слои)'], ['view', 'Текущий вид на экране'], ['window', region || this.printRegion ? 'Рамка (выбрана)' : 'Рамка — выбрать на чертеже…']]);
       row('Что печатать', what);
-      row('Формат листа', sel('paper', [['A4', 'A4 (210 × 297)'], ['A3', 'A3 (297 × 420)'], ['A2', 'A2 (420 × 594)'], ['A1', 'A1 (594 × 841)'], ['A0', 'A0 (841 × 1189)']]));
-      row('Ориентация', sel('orient', [['auto', 'Автоматически'], ['land', 'Альбомная'], ['port', 'Книжная']]));
+      const paperRow = sel('paper', [['A4', 'A4 (210 × 297)'], ['A3', 'A3 (297 × 420)'], ['A2', 'A2 (420 × 594)'], ['A1', 'A1 (594 × 841)'], ['A0', 'A0 (841 × 1189)']]);
+      if (!inSheet) {
+        row('Формат листа', paperRow);
+        row('Ориентация', sel('orient', [['auto', 'Автоматически'], ['land', 'Альбомная'], ['port', 'Книжная']]));
+      }
       const scaleSel = sel('scale', [['fit', 'Вписать в лист'], ['100', '1:100'], ['200', '1:200'], ['250', '1:250'], ['500', '1:500'], ['1000', '1:1000'], ['2000', '1:2000'], ['5000', '1:5000'], ['custom', 'Другой…']]);
       const custom = el('input', { type: 'number', min: '1', step: 'any', value: o.custom, style: { width: '90px' } });
       custom.addEventListener('input', () => { o.custom = +custom.value; upd(); });
-      row('Масштаб', el('div', { style: { display: 'flex', gap: '6px', alignItems: 'center' } }, [scaleSel, el('span', { text: '1:' }), custom]));
+      if (!inSheet) row('Масштаб', el('div', { style: { display: 'flex', gap: '6px', alignItems: 'center' } }, [scaleSel, el('span', { text: '1:' }), custom]));
       row('Цвета', sel('color', [['color', 'Цветная (на белом)'], ['mono', 'Чёрно-белая']]));
       row('Толщина линий', sel('lw', [['0.1', '0,10 мм'], ['0.18', '0,18 мм'], ['0.25', '0,25 мм'], ['0.35', '0,35 мм'], ['0.5', '0,50 мм']]));
       const info = el('div', { class: 'print-info' });
       body.append(info, el('div', { class: 'print-hint', text: `Единицы чертежа: ${unit} (меняются внизу справа). Масштаб 1:N означает: 1 мм на бумаге = N мм на местности.` }));
       const upd = () => {
-        custom.parentElement.querySelectorAll('span, input').forEach((x) => (x.style.display = o.scale === 'custom' ? '' : 'none'));
+        if (custom.parentElement) custom.parentElement.querySelectorAll('span, input').forEach((x) => (x.style.display = o.scale === 'custom' ? '' : 'none'));
         const lay = this.printLayout(o, region || this.printRegion);
         info.textContent = lay ? `Лист ${lay.pw} × ${lay.ph} мм, масштаб ${lay.scaleText}${lay.clipped ? ' — чертёж не помещается на лист целиком, будет обрезан' : ''}` : 'Нечего печатать';
         info.classList.toggle('warn', !!(lay && lay.clipped));
@@ -1552,6 +1696,10 @@
     }
     /** paper size / scale / view for a print job */
     printLayout(o, region) {
+      if (o.what === 'sheet' && this.layoutIdx >= 0) {
+        const L = this.layouts[this.layoutIdx];
+        return { pw: Math.round(L.w * 10) / 10, ph: Math.round(L.h * 10) / 10, mmPerUnit: 1, scaleText: '1:1 (как в чертеже)', clipped: false, cx: L.w / 2, cy: L.h / 2, margin: 0, sheet: true };
+      }
       let box;
       if (o.what === 'view') { const v = this.visibleBox(); box = [v.x1, v.y1, v.x2, v.y2]; }
       else if (o.what === 'window' && region) box = region;
@@ -1598,17 +1746,20 @@
         const mode = o.color === 'mono' ? 3 : 1;
         const view = { cx: lay.cx, cy: lay.cy, s: lay.mmPerUnit * pxmm, W: Wpx, H: Hpx };
         const linePx = Math.max(1, parseFloat(o.lw) * pxmm);
-        pv.draw(view, this.origin, this.layerByIndex || [], hexRgb(th.fg), null, mode, { linePx });
-        // texts and red pencil marks through the normal code with a temporary view
         const txt = document.createElement('canvas');
         txt.width = Wpx; txt.height = Hpx;
-        const saved = { textCanvas: this.textCanvas, view: this.view, W: this.W, H: this.H, dpr: this.dpr };
-        Object.assign(this, { textCanvas: txt, view: { cx: lay.cx, cy: lay.cy, s: view.s }, W: Wpx, H: Hpx, dpr: 1 });
-        try { this.drawTexts(th); } finally { Object.assign(this, saved); }
+        if (lay.sheet) {
+          // the sheet: model through its viewports + frames/stamps, at true paper size
+          pv.upload('paper', this.eng);
+          this.renderLayoutTo({ gv: pv, textCanvas: txt, view, W: Wpx, H: Hpx, dpr: 1, th, mode, linePx });
+        } else {
+          pv.draw(view, this.origin, this.layerByIndex || [], hexRgb(th.fg), null, mode, { linePx });
+          this.drawTexts(th, { canvas: txt, view, W: Wpx, H: Hpx, dpr: 1, mode });
+        }
         const ctx = geo.getContext('2d');
         ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.drawImage(txt, 0, 0);
-        if (this.ink && this.ink.length) {
+        if (!lay.sheet && this.ink && this.ink.length) {
           ctx.setTransform(view.s, 0, 0, -view.s, Wpx / 2 - lay.cx * view.s, Hpx / 2 + lay.cy * view.s);
           ctx.strokeStyle = INK_RED; ctx.lineWidth = (0.5 * pxmm) / view.s; ctx.lineCap = 'round';
           ctx.beginPath();
@@ -1622,11 +1773,11 @@
         ctx.fillRect(0, 0, Wpx, Hpx);
         ctx.globalCompositeOperation = 'source-over';
         const m = lay.margin * pxmm;
-        ctx.fillRect(0, 0, Wpx, m); ctx.fillRect(0, Hpx - m, Wpx, m); ctx.fillRect(0, 0, m, Hpx); ctx.fillRect(Wpx - m, 0, m, Hpx);
+        if (m > 0) ctx.fillRect(0, 0, Wpx, m); ctx.fillRect(0, Hpx - m, Wpx, m); ctx.fillRect(0, 0, m, Hpx); ctx.fillRect(Wpx - m, 0, m, Hpx);
         // small caption under the drawing
         const name = (window.App.active() && window.App.active().name) || 'Чертёж';
         ctx.fillStyle = '#555'; ctx.font = `${Math.round(2.4 * pxmm)}px Arial`; ctx.textBaseline = 'middle';
-        ctx.fillText(`${name} · масштаб ${lay.scaleText.replace(' (вписано)', '')} · ${new Date().toLocaleDateString('ru')}`, m, Hpx - m / 2);
+        if (!lay.sheet) ctx.fillText(`${name} · масштаб ${lay.scaleText.replace(' (вписано)', '')} · ${new Date().toLocaleDateString('ru')}`, m, Hpx - m / 2);
         const blob = await new Promise((r) => geo.toBlob(r, 'image/png'));
         const png = new Uint8Array(await blob.arrayBuffer());
         busy.remove && busy.remove();

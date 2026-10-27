@@ -13,6 +13,7 @@ pub struct Parsed {
     pub blocks: HashMap<String, Block>,
     pub ents: Vec<Ent>,
     pub skipped: usize,
+    pub layouts: Vec<Layout>,
 }
 
 // ---------------------------------------------------------------- decoding
@@ -270,6 +271,12 @@ pub fn clean_mtext(s: &str) -> String {
 // ---------------------------------------------------------------- entities
 struct Ctx<'a> {
     layers: &'a mut Layers,
+    /// viewports met so far, with the paper-space block they belong to
+    vps: Vec<(Viewport, String)>,
+    /// paper-space entities of the active layout (ENTITIES with 67=1)
+    paper: Vec<Ent>,
+    /// block being read ("" in ENTITIES)
+    block: String,
 }
 
 /// DXF transparency value: 0x02000000 | alpha byte; 0x01000000 = ByBlock; absent = ByLayer
@@ -745,8 +752,15 @@ fn read_entities<'a>(rd: &mut Reader<'a>, stop: &[&str], ctx: &mut Ctx, skip_pap
         rd.next();
         rd.body(&mut buf);
         let rec = Rec { p: &buf };
-        let paper = skip_paper && rec.i(67) == Some(1);
-        match kind {
+        // paper-space entities of the active layout: kept aside for the «Лист» tabs
+        let paper_rec = skip_paper && rec.i(67) == Some(1);
+        let paper = false;
+        if kind == "VIEWPORT" {
+            ctx.vps.push((viewport_from(&rec), if paper_rec || !skip_paper { ctx.block.clone() } else { String::new() }));
+            continue;
+        }
+        let n0 = out.len();
+        'rec: { match kind {
             "POLYLINE" => {
                 let flags = rec.i(70).unwrap_or(0);
                 let neg = rec.f(230).map(|z| z < 0.0).unwrap_or(false);
@@ -801,11 +815,11 @@ fn read_entities<'a>(rd: &mut Reader<'a>, stop: &[&str], ctx: &mut Ctx, skip_pap
                             }
                         }
                     }
-                    continue;
+                    break 'rec;
                 }
                 if flags & 16 != 0 || pts.len() < 2 || paper || rec.i(60) == Some(1) {
                     *skipped += 1;
-                    continue;
+                    break 'rec;
                 }
                 let (layer, color, by_block) = common(&rec, ctx);
                 out.push(Ent { layer, color, by_block, alpha: ent_alpha(&rec), geo: Geo::Poly { pts, closed: flags & 1 != 0, filled: false } });
@@ -843,7 +857,7 @@ fn read_entities<'a>(rd: &mut Reader<'a>, stop: &[&str], ctx: &mut Ctx, skip_pap
             }
             "SPLINE" => {
                 if paper {
-                    continue;
+                    break 'rec;
                 }
                 let (layer, color, by_block) = common(&rec, ctx);
                 let flags = rec.i(70).unwrap_or(0);
@@ -877,7 +891,7 @@ fn read_entities<'a>(rd: &mut Reader<'a>, stop: &[&str], ctx: &mut Ctx, skip_pap
                     catmull_rom(&fit, 12, flags & 1 != 0)
                 } else {
                     *skipped += 1;
-                    continue;
+                    break 'rec;
                 };
                 out.push(Ent { layer, color, by_block, alpha: ent_alpha(&rec), geo: Geo::Poly { pts: pts.into_iter().map(|p| V { x: p.x, y: p.y, b: 0.0 }).collect(), closed: false, filled: false } });
             }
@@ -886,7 +900,31 @@ fn read_entities<'a>(rd: &mut Reader<'a>, stop: &[&str], ctx: &mut Ctx, skip_pap
                 Some(e) if !paper => out.push(e),
                 _ => *skipped += 1,
             },
+        } }
+        if paper_rec && out.len() > n0 {
+            let moved: Vec<Ent> = out.drain(n0..).collect();
+            ctx.paper.extend(moved);
         }
+    }
+}
+
+fn viewport_from(r: &Rec) -> Viewport {
+    let (tx, ty) = (r.fd(17, 0.0), r.fd(27, 0.0));
+    let (dx, dy) = (r.fd(12, 0.0), r.fd(22, 0.0));
+    let twist = r.fd(51, 0.0);
+    // view centre: target + DCS centre (rotated by the view twist)
+    let (sn, co) = (-twist * D2R).sin_cos();
+    Viewport {
+        cx: r.fd(10, 0.0),
+        cy: r.fd(20, 0.0),
+        w: r.fd(40, 0.0),
+        h: r.fd(41, 0.0),
+        mx: tx + dx * co - dy * sn,
+        my: ty + dx * sn + dy * co,
+        vh: r.fd(45, 1.0),
+        twist,
+        id: r.i(69).unwrap_or(0),
+        on: true,
     }
 }
 
@@ -899,6 +937,11 @@ pub fn parse(text: &str) -> Parsed {
     let mut skipped = 0usize;
     let mut units = 0i64;
     let mut buf: Vec<Tok> = Vec::new();
+    let mut vps: Vec<(Viewport, String)> = Vec::new();
+    let mut paper_blocks: HashMap<String, Vec<Ent>> = HashMap::new();
+    let mut active_paper: Vec<Ent> = Vec::new();
+    let mut block_of_record: HashMap<String, String> = HashMap::new();
+    let mut layout_recs: Vec<(String, i64, String, f64, f64, i64)> = Vec::new();
     while let Some(kind) = rd.peek_kind() {
         rd.next();
         if kind != "SECTION" {
@@ -968,23 +1011,49 @@ pub fn parse(text: &str) -> Parsed {
                     let r = Rec { p: &buf };
                     let bname = r.get(2).or_else(|| r.get(3)).unwrap_or("").to_string();
                     let base = r.pt(10);
+                    if let Some(h) = r.get(330) {
+                        block_of_record.insert(h.trim().to_string(), bname.clone());
+                    }
                     let mut bents = Vec::new();
-                    let mut ctx = Ctx { layers: &mut layers };
+                    let mut ctx = Ctx { layers: &mut layers, vps: Vec::new(), paper: Vec::new(), block: bname.clone() };
                     read_entities(&mut rd, &["ENDBLK", "ENDSEC"], &mut ctx, false, &mut bents, &mut 0);
+                    vps.extend(ctx.vps);
                     if rd.peek_kind() == Some("ENDBLK") {
                         rd.next();
                         rd.body(&mut buf);
                     }
                     let lower = bname.to_ascii_lowercase();
-                    if !bname.is_empty() && !lower.starts_with("*model_space") && !lower.starts_with("*paper_space") {
+                    if lower.starts_with("*paper_space") {
+                        paper_blocks.insert(bname, bents);
+                    } else if !bname.is_empty() && !lower.starts_with("*model_space") {
                         bents.shrink_to_fit();
                         blocks.insert(bname, Block { base, ents: bents });
                     }
                 }
             }
             "ENTITIES" => {
-                let mut ctx = Ctx { layers: &mut layers };
+                let mut ctx = Ctx { layers: &mut layers, vps: Vec::new(), paper: Vec::new(), block: "*Paper_Space".into() };
                 read_entities(&mut rd, &["ENDSEC"], &mut ctx, true, &mut ents, &mut skipped);
+                vps.extend(ctx.vps.into_iter().filter(|(_, b)| !b.is_empty()));
+                active_paper = ctx.paper;
+            }
+            "OBJECTS" => {
+                while let Some(k) = rd.peek_kind() {
+                    if k == "ENDSEC" {
+                        break;
+                    }
+                    rd.next();
+                    rd.body(&mut buf);
+                    if k != "LAYOUT" {
+                        continue;
+                    }
+                    // plot settings come first, then the AcDbLayout part (name, tab order, block record)
+                    let split = buf.iter().position(|t| t.0 == 100 && t.1.trim() == "AcDbLayout").unwrap_or(0);
+                    let (ps, lo) = (Rec { p: &buf[..split] }, Rec { p: &buf[split..] });
+                    let name = lo.text(1);
+                    let rec_h = lo.p.iter().rev().find(|t| t.0 == 330).map(|t| t.1.trim().to_string()).unwrap_or_default();
+                    layout_recs.push((name, lo.i(71).unwrap_or(0), rec_h, ps.fd(44, 0.0), ps.fd(45, 0.0), ps.i(73).unwrap_or(0)));
+                }
             }
             _ => {}
         }
@@ -996,5 +1065,43 @@ pub fn parse(text: &str) -> Parsed {
             }
         }
     }
-    Parsed { units, layers, blocks, ents, skipped }
+    // ---- layouts: LAYOUT objects -> paper-space block -> viewports + sheet objects
+    let mut layouts: Vec<Layout> = Vec::new();
+    for (name, order, rec_h, pw, ph, rot) in layout_recs {
+        let Some(block) = block_of_record.get(&rec_h).cloned() else { continue };
+        if block.to_ascii_lowercase().starts_with("*model_space") || name.eq_ignore_ascii_case("model") {
+            continue;
+        }
+        let (mut w, mut h) = (pw, ph);
+        if rot == 1 || rot == 3 {
+            std::mem::swap(&mut w, &mut h);
+        }
+        let mut lents = paper_blocks.remove(&block).unwrap_or_default();
+        if block == "*Paper_Space" {
+            lents.extend(std::mem::take(&mut active_paper));
+        }
+        // the first viewport of a layout is the sheet itself, not a window into the model
+        let lvps: Vec<Viewport> = vps.iter().filter(|(_, b)| *b == block).map(|(v, _)| v.clone()).skip(1).collect();
+        // never set up (template «Layout1» with nothing on it): no tab, like an empty sheet would be useless
+        if lvps.is_empty() && lents.is_empty() {
+            continue;
+        }
+        if w <= 0.0 || h <= 0.0 {
+            // no paper size in the plot settings: take the box of the viewports, at least A3
+            let (mut x2, mut y2) = (420.0f64, 297.0f64);
+            for v in &lvps {
+                x2 = x2.max(v.cx + v.w / 2.0);
+                y2 = y2.max(v.cy + v.h / 2.0);
+            }
+            w = x2;
+            h = y2;
+        }
+        layouts.push(Layout { name, order, block, w, h, rot, vps: lvps, ents: lents });
+    }
+    if layouts.is_empty() && (!active_paper.is_empty() || vps.iter().any(|(_, b)| b == "*Paper_Space")) {
+        let lvps: Vec<Viewport> = vps.iter().filter(|(_, b)| b == "*Paper_Space").map(|(v, _)| v.clone()).skip(1).collect();
+        layouts.push(Layout { name: "Лист".into(), order: 1, block: "*Paper_Space".into(), w: 420.0, h: 297.0, rot: 0, vps: lvps, ents: active_paper });
+    }
+    layouts.sort_by_key(|l| l.order);
+    Parsed { units, layers, blocks, ents, skipped, layouts }
 }

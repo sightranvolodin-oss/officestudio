@@ -221,6 +221,12 @@ let wasm_bindgen;
             }
         }
         /**
+         * @param {number} i
+         */
+        build_paper(i) {
+            wasm.engine_build_paper(this.__wbg_ptr, i);
+        }
+        /**
          * @returns {number}
          */
         dirty_count() {
@@ -272,6 +278,23 @@ let wasm_bindgen;
             }
         }
         /**
+         * @returns {Float64Array}
+         */
+        paper_texts() {
+            const ret = wasm.engine_paper_texts(this.__wbg_ptr);
+            var v1 = getArrayF64FromWasm0(ret[0], ret[1]).slice();
+            wasm.__wbindgen_free(ret[0], ret[1] * 8, 8);
+            return v1;
+        }
+        /**
+         * @param {number} kind
+         * @returns {number}
+         */
+        paper_total(kind) {
+            const ret = wasm.engine_paper_total(this.__wbg_ptr, kind);
+            return ret >>> 0;
+        }
+        /**
          * summary of a selection for the properties panel
          * @param {Uint32Array} ids
          * @returns {string}
@@ -311,6 +334,22 @@ let wasm_bindgen;
             return ret >>> 0;
         }
         /**
+         * layouts («Лист» tabs): [{name, w, h, vps: [{cx, cy, w, h, mx, my, vh, twist, on}]}]
+         * @returns {string}
+         */
+        layouts_json() {
+            let deferred1_0;
+            let deferred1_1;
+            try {
+                const ret = wasm.engine_layouts_json(this.__wbg_ptr);
+                deferred1_0 = ret[0];
+                deferred1_1 = ret[1];
+                return getStringFromWasm0(ret[0], ret[1]);
+            } finally {
+                wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+            }
+        }
+        /**
          * @param {number} i
          * @returns {number}
          */
@@ -333,6 +372,15 @@ let wasm_bindgen;
         ov_chunk_pos(i) {
             const ret = wasm.engine_ov_chunk_pos(this.__wbg_ptr, i);
             return ret >>> 0;
+        }
+        /**
+         * @returns {Uint32Array}
+         */
+        paper_groups() {
+            const ret = wasm.engine_paper_groups(this.__wbg_ptr);
+            var v1 = getArrayU32FromWasm0(ret[0], ret[1]).slice();
+            wasm.__wbindgen_free(ret[0], ret[1] * 4, 4);
+            return v1;
         }
         /**
          * Free the CPU copy of the base buffers after they were uploaded to the GPU
@@ -520,6 +568,45 @@ let wasm_bindgen;
             var v2 = getArrayF64FromWasm0(ret[0], ret[1]).slice();
             wasm.__wbindgen_free(ret[0], ret[1] * 8, 8);
             return v2;
+        }
+        /**
+         * @param {number} i
+         * @returns {number}
+         */
+        paper_chunk_col(i) {
+            const ret = wasm.engine_paper_chunk_col(this.__wbg_ptr, i);
+            return ret >>> 0;
+        }
+        /**
+         * @param {number} i
+         * @returns {number}
+         */
+        paper_chunk_lay(i) {
+            const ret = wasm.engine_paper_chunk_lay(this.__wbg_ptr, i);
+            return ret >>> 0;
+        }
+        /**
+         * @param {number} i
+         * @returns {number}
+         */
+        paper_chunk_pos(i) {
+            const ret = wasm.engine_paper_chunk_pos(this.__wbg_ptr, i);
+            return ret >>> 0;
+        }
+        /**
+         * @returns {string}
+         */
+        paper_texts_str() {
+            let deferred1_0;
+            let deferred1_1;
+            try {
+                const ret = wasm.engine_paper_texts_str(this.__wbg_ptr);
+                deferred1_0 = ret[0];
+                deferred1_1 = ret[1];
+                return getStringFromWasm0(ret[0], ret[1]);
+            } finally {
+                wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+            }
         }
         /**
          * @param {string} name

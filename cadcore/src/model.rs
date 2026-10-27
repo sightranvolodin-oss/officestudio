@@ -264,3 +264,33 @@ impl Ent {
         Ent { layer, color: j.color.as_deref().and_then(parse_hex), by_block: j.by_block, alpha: j.alpha, geo: j.geo }
     }
 }
+
+/// A paper-space viewport: rectangle on the sheet (paper units) showing part of the model
+#[derive(Clone, Debug, Default, Serialize)]
+pub struct Viewport {
+    pub cx: f64,
+    pub cy: f64,
+    pub w: f64,
+    pub h: f64,
+    /// model point shown at the viewport centre
+    pub mx: f64,
+    pub my: f64,
+    /// model height shown in the viewport
+    pub vh: f64,
+    pub twist: f64,
+    pub id: i64,
+    pub on: bool,
+}
+
+/// A «Лист» tab: sheet size, viewports and paper-space objects (frames, stamps…)
+#[derive(Clone, Debug, Default)]
+pub struct Layout {
+    pub name: String,
+    pub order: i64,
+    pub block: String,
+    pub w: f64,
+    pub h: f64,
+    pub rot: i64,
+    pub vps: Vec<Viewport>,
+    pub ents: Vec<Ent>,
+}
