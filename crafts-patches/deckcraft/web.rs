@@ -163,7 +163,6 @@ pub fn start() {
                     if let Some(rs) = &cc.wgpu_render_state {
                         log::info!("deckcraft-web {}: wgpu backend {:?}", env!("CARGO_PKG_VERSION"), rs.adapter.get_info().backend);
                     }
-                    deckcraft_ui_egui::install_ime_pass_hooks(&cc.egui_ctx);
                     let inbox: Inbox = Inbox::default();
                     let mut app = SlideApp::new(Session::new(), services(inbox.clone(), cc.egui_ctx.clone(), host.as_ref().map(|h| h.outgoing.clone())));
                     let q = query();
@@ -271,19 +270,12 @@ impl WebShell {
 }
 
 impl eframe::App for WebShell {
-    /// Delegate one eframe logic pass to the wrapped application.
     fn logic(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         self.host_pass();
-        self.app.logic(ctx);
-        self.host_pass();
-    }
-
-    /// Consume browser drops with fresh input, capture the identity before the asynchronous read,
-    /// and deliver the id, name, and bytes through the inbox.
-    fn raw_input_hook(&mut self, ctx: &egui::Context, raw: &mut egui::RawInput) {
-        // Browsers cannot read dropped files synchronously. Consume this pass's drops here, with
-        // fresh input, and capture the document/slide before the asynchronous read finishes.
-        for f in std::mem::take(&mut raw.dropped_files) {
+        let dropped = ctx.input_mut(|i| std::mem::take(&mut i.raw.dropped_files));
+        for f in dropped {
+            // Capture the document and slide now. The bytes arrive later, after the user may
+            // have switched slides.
             let id = self.app.begin_external_file("drop");
             let inbox = self.inbox.clone();
             let ctx = ctx.clone();
@@ -302,7 +294,12 @@ impl eframe::App for WebShell {
                 }
             });
         }
-        self.app.raw_input_hook(ctx, raw);
+        self.app.logic(ctx);
+        self.host_pass();
+    }
+
+    fn raw_input_hook(&mut self, _ctx: &egui::Context, raw: &mut egui::RawInput) {
+        self.app.raw_input_hook(raw);
     }
 
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
