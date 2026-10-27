@@ -1,0 +1,35 @@
+# Fetches the latest web builds of WordCraft, GridCraft, DeckCraft and CADCraft (MIT OR Apache-2.0,
+# github.com/storytold) and stores them on the «crafts» branch, so they can be inspected and pinned.
+name: Fetch Craft apps
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          mkdir -p out
+          for r in wordcraft gridcraft deckcraft cadcraft; do
+            tag=$(gh release view -R storytold/$r --json tagName -q .tagName)
+            echo "$r $tag" | tee -a out/versions.txt
+            gh release view -R storytold/$r --json assets -q '.assets[] | "\(.name) \(.size)"' | tee out/$r-assets.txt
+            mkdir -p dl/$r && gh release download "$tag" -R storytold/$r -D dl/$r -p '*web*.zip'
+            mkdir -p out/$r && unzip -q dl/$r/*.zip -d out/$r
+            find out/$r -maxdepth 3 | head -30
+          done
+          du -sh out/*
+          find out -type f -size +90M
+      - name: Push to the crafts branch
+        run: |
+          set -e
+          cd out
+          git init -q -b crafts
+          git config user.name "github-actions"; git config user.email "actions@github.com"
+          git add -A && git commit -qm "Craft web builds: $(tr '\n' ' ' < versions.txt)"
+          git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}" crafts
