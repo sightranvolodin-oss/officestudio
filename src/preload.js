@@ -1,0 +1,26 @@
+const { contextBridge, ipcRenderer, webUtils } = require('electron');
+
+contextBridge.exposeInMainWorld('api', {
+  openDialog: () => ipcRenderer.invoke('open-dialog'),
+  openFile: (p) => ipcRenderer.invoke('open-file', p),
+  saveFile: (args) => ipcRenderer.invoke('save-file', args),
+  exportPdf: (args) => ipcRenderer.invoke('export-pdf', args),
+  exportPng: (args) => ipcRenderer.invoke('export-png', args),
+  pickImage: () => ipcRenderer.invoke('pick-image'),
+  getRecent: () => ipcRenderer.invoke('get-recent'),
+  clearRecent: () => ipcRenderer.invoke('clear-recent'),
+  showInFolder: (p) => ipcRenderer.invoke('show-in-folder', p),
+  confirm: (args) => ipcRenderer.invoke('confirm', args),
+  forceClose: () => ipcRenderer.invoke('force-close'),
+  setTitle: (t) => ipcRenderer.invoke('set-title', t),
+  takePending: () => ipcRenderer.invoke('take-pending'),
+  readWasm: () => ipcRenderer.invoke('read-wasm'),
+  pathForFile: (file) => (webUtils && webUtils.getPathForFile ? webUtils.getPathForFile(file) : file.path),
+  updateGet: () => ipcRenderer.invoke('update-get'),
+  updateCheck: () => ipcRenderer.invoke('update-check'),
+  updateDownload: () => ipcRenderer.invoke('update-download'),
+  updateInstall: () => ipcRenderer.invoke('update-install'),
+  onUpdateState: (cb) => ipcRenderer.on('update-state', (e, s) => cb(s)),
+  onMenu: (cb) => ipcRenderer.on('menu', (e, cmd) => cb(cmd)),
+  onOpenPath: (cb) => ipcRenderer.on('open-path', (e, p) => cb(p)),
+});

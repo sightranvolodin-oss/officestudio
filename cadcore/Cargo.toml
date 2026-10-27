@@ -1,0 +1,23 @@
+[package]
+name = "cadcore"
+version = "0.1.0"
+edition = "2021"
+description = "OfficeStudio drawing engine: DXF parsing, geometry, spatial index, editing, DXF writing"
+license = "GPL-3.0"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+wasm-bindgen = "=0.2.104"
+rstar = "0.12"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+encoding_rs = "0.8"
+earcut = "0.4"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"

@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; script-src 'self' 'wasm-unsafe-eval'">
+  <title>OfficeStudio</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="tabbar">
+    <div id="brand" title="OfficeStudio">
+      <svg viewBox="0 0 24 24" width="20" height="20"><rect x="2" y="2" width="9" height="9" rx="2" fill="#2b6cdf"/><rect x="13" y="2" width="9" height="9" rx="2" fill="#e2702f"/><rect x="2" y="13" width="9" height="9" rx="2" fill="#1f9d6b"/><rect x="13" y="13" width="9" height="9" rx="2" fill="#8a94a6"/></svg>
+    </div>
+    <div id="tabs"></div>
+    <button id="tab-new" class="tab-plus" title="Создать">+</button>
+    <span class="tabbar-spacer"></span>
+    <button id="update-btn" class="update-btn" hidden></button>
+  </div>
+  <div id="views"></div>
+  <div id="drop-hint"><div>Отпустите, чтобы открыть файл</div></div>
+  <div id="toasts"></div>
+
+  <script src="ui.js"></script>
+  <script src="ink.js"></script>
+  <script src="doc-editor.js"></script>
+  <script src="slide-editor.js"></script>
+  <script src="vendor/hyperformula.full.min.js"></script>
+  <script src="vendor/ruRU.js"></script>
+  <script src="sheet-editor.js"></script>
+  <script src="cadcore/cadcore.js"></script>
+  <script src="cad-gl.js"></script>
+  <script src="cad-editor.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

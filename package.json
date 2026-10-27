@@ -1,0 +1,113 @@
+{
+  "name": "officestudio",
+  "version": "1.5.0",
+  "description": "Редактор DOCX, PPTX и DWG/DXF",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist:win": "electron-builder --win nsis portable --x64 --publish never"
+  },
+  "keywords": [],
+  "author": "OfficeStudio",
+  "license": "GPL-3.0",
+  "dependencies": {
+    "@mlightcad/libredwg-web": "^0.8.2",
+    "@xmldom/xmldom": "^0.9.12",
+    "electron-updater": "^6.8.11",
+    "exceljs": "^4.4.0",
+    "html-to-docx": "^1.8.0",
+    "jszip": "^3.10.2",
+    "mammoth": "^1.13.0",
+    "pptxgenjs": "^4.0.1"
+  },
+  "devDependencies": {
+    "electron": "^45.0.0",
+    "electron-builder": "^26.18.0",
+    "hyperformula": "^3.5.0"
+  },
+  "productName": "OfficeStudio",
+  "build": {
+    "appId": "app.officestudio.desktop",
+    "productName": "OfficeStudio",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "src/**/*",
+      "build/icon.png",
+      "package.json"
+    ],
+    "asarUnpack": [
+      "node_modules/@mlightcad/libredwg-web/wasm/**"
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "icon": "build/icon.ico",
+      "extraResources": [
+        {
+          "from": "bin/win",
+          "to": "bin/win",
+          "filter": [
+            "**/*"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "perMachine": false,
+      "createDesktopShortcut": true,
+      "shortcutName": "OfficeStudio",
+      "language": "1049",
+      "artifactName": "${productName}-Setup-${version}.${ext}"
+    },
+    "fileAssociations": [
+      {
+        "ext": "docx",
+        "name": "Документ Word",
+        "role": "Editor"
+      },
+      {
+        "ext": "xlsx",
+        "name": "Книга Excel",
+        "role": "Editor"
+      },
+      {
+        "ext": "pptx",
+        "name": "Презентация PowerPoint",
+        "role": "Editor"
+      },
+      {
+        "ext": "dwg",
+        "name": "Чертёж AutoCAD",
+        "role": "Viewer"
+      },
+      {
+        "ext": "dxf",
+        "name": "Чертёж DXF",
+        "role": "Editor"
+      }
+    ],
+    "portable": {
+      "artifactName": "${productName}-Portable-${version}.${ext}"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "sightranvolodin-oss",
+        "repo": "officestudio",
+        "releaseType": "release"
+      }
+    ]
+  },
+  "updateRepo": "sightranvolodin-oss/officestudio",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sightranvolodin-oss/officestudio.git"
+  }
+}
