@@ -103,7 +103,11 @@
         "repo": "officestudio",
         "releaseType": "release"
       }
-    ]
+    ],
+    "releaseInfo": {
+      "releaseName": "OfficeStudio ${version}",
+      "releaseNotesFile": "release-notes.md"
+    }
   },
   "updateRepo": "sightranvolodin-oss/officestudio",
   "repository": {

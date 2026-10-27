@@ -1,0 +1,24 @@
+# Builds the Windows installer + portable on GitHub's Windows machines and publishes them as a
+# GitHub Release when a version tag (v1.2.3) is pushed. The app's «Обновить» button reads these
+# releases (latest.yml + installer for the installed copy, the portable .exe for the portable one).
+name: Release
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Build and publish
+        run: npx electron-builder --win nsis portable --x64 --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
