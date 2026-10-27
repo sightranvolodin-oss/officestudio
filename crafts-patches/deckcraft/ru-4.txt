@@ -1,0 +1,106 @@
+Present ⇒ Показ
+Learn More ⇒ Подробнее
+Rehearse Timings ⇒ Настройка времени
+Ink to Text ⇒ Рукописный ввод в текст
+Ink to Math ⇒ Рукописный ввод в формулу
+Play from Beginning ⇒ С начала
+From Beginning ⇒ С начала
+From Current Slide ⇒ С текущего слайда
+Accept All ⇒ Принять все
+Background Styles ⇒ Стили фона
+Text Box ⇒ Надпись
+Shape Effects ⇒ Эффекты фигуры
+Show Comments ⇒ Показать примечания
+New Comment ⇒ Создать примечание
+Check Accessibility ⇒ Проверка доступности
+Morph ⇒ Трансформация
+Fade ⇒ Выцветание
+Push ⇒ Сдвиг
+Wipe ⇒ Стирание
+Reveal ⇒ Появление
+Random Bars ⇒ Случайные полосы
+Cover ⇒ Наплыв
+Uncover ⇒ Открывание
+Appear ⇒ Появление
+Disappear ⇒ Исчезновение
+Fly In ⇒ Вылет
+Fly Out ⇒ Вылет за край
+Float In ⇒ Возникновение
+Float Out ⇒ Исчезание
+Pulse ⇒ Пульсация
+Grow/Shrink ⇒ Изменение размера
+Grow & Turn ⇒ Увеличение с поворотом
+Shrink & Turn ⇒ Уменьшение с поворотом
+Teeter ⇒ Качание
+Wheel ⇒ Колесо
+Bounce ⇒ Выскакивание
+Blinds ⇒ Жалюзи
+Checkerboard ⇒ Шахматная доска
+Clockwise ⇒ По часовой стрелке
+Counterclockwise ⇒ Против часовой стрелки
+Comb ⇒ Гребёнка
+Conveyor ⇒ Конвейер
+Crush ⇒ Сжатие
+Cube ⇒ Куб
+Curtains ⇒ Занавес
+Diamonds ⇒ Ромбы
+Doors ⇒ Двери
+Drape ⇒ Драпировка
+Fracture ⇒ Разлом
+Glitter ⇒ Блеск
+Heartbeat ⇒ Сердцебиение
+Hexagons ⇒ Шестиугольники
+Honeycomb ⇒ Соты
+Origami ⇒ Оригами
+Particles ⇒ Частицы
+Peanut ⇒ Арахис
+Prestige ⇒ Престиж
+Ripple ⇒ Рябь
+Shred ⇒ Шредер
+Smoothly ⇒ Плавно
+Spinner ⇒ Вертушка
+Spring ⇒ Пружина
+Strips ⇒ Полосы
+Switch ⇒ Переключение
+Swivel ⇒ Вращение по оси
+Swoosh ⇒ Взмах
+Teardrop ⇒ Капля
+Turns ⇒ Повороты
+Vortex ⇒ Воронка
+Wedge ⇒ Клин
+Wind ⇒ Ветер
+Write ⇒ Начертание
+Zigzag ⇒ Зигзаг
+Loops ⇒ Петли
+Arcs ⇒ Дуги
+S Curve 1 ⇒ S-кривая 1
+S Curve 2 ⇒ S-кривая 2
+Airplane ⇒ Самолёт
+Football ⇒ Мяч
+Bean ⇒ Боб
+Neutron ⇒ Нейтрон
+Reflexia ⇒ Отражение
+Agenda ⇒ План
+Welcome ⇒ Добро пожаловать
+First point ⇒ Первый пункт
+Second point ⇒ Второй пункт
+Saved a copy ⇒ Копия сохранена
+JPEG has no transparency ⇒ В JPEG нет прозрачности
+PDF has no transparent background ⇒ У PDF нет прозрачного фона
+Light/Dark appearance ⇒ Светлое/тёмное оформление
+Quarterly review ⇒ Квартальный обзор
+Duration: ⇒ Длительность:
+Columns… ⇒ Колонки…
+Page Setup… ⇒ Параметры страницы…
+Selection Pane… ⇒ Область выделения…
+AutoCorrect Options… ⇒ Параметры автозамены…
+Replace fractions (1/2) with fraction characters (½) ⇒ Заменять дроби (1/2) знаками дробей (½)
+Spacing (pt) ⇒ Интервал (пт)
+Insert… ⇒ Вставить…
+{n} slides per page ⇒ Слайдов на странице: {n}
+{} ({} slides) ⇒ {} (слайдов: {})
+{path} — this file can't be found ⇒ {path} — файл не найден
+◀ Previous ⇒ ◀ Назад
+Previous ⇒ Назад
+Next ⇒ Далее
+Delete ⇒ Удалить

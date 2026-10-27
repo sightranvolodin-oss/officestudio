@@ -204,3 +204,12 @@ pub fn apply(job: &mut LayoutJob) {
         }
     }
 }
+
+/// The translation of an interface string (for labels a widget splits into lines before laying
+/// them out), or `None`.
+pub fn label(text: &str) -> Option<String> {
+    if OFF.with(Cell::get) > 0 {
+        return None;
+    }
+    lookup(text)
+}

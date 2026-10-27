@@ -25,6 +25,14 @@ app.whenReady().then(async () => {
   check('crafts installed', JSON.stringify(await js(`return App.settings().crafts`)) === '{"doc":true,"sheet":true,"slides":true,"cad":true}', JSON.stringify(await js(`return App.settings()`)));
   for (const [i, f] of args.slice(1).entries()) {
     const t0 = Date.now();
+    if (/\.dwg$/i.test(f)) {
+      // drawings open in OfficeStudio's own viewer by default
+      await js(`await App.openPaths([${JSON.stringify(f)}])`);
+      await wait(4000);
+      const t = JSON.parse(await js(`const t = App.active(); return JSON.stringify({ kind: t.kind, craft: !!t.craft })`));
+      check('dwg opens in the OfficeStudio viewer', t.kind === 'cad' && !t.craft, JSON.stringify(t));
+      continue;
+    }
     await js(`await App.openPaths([${JSON.stringify(f)}])`);
     let ready = false;
     for (let k = 0; k < 120 && !ready; k++) { await wait(500); ready = await js(`const t = App.active(); return !!(t && t.craft && t.editor.ready)`); }
@@ -57,7 +65,7 @@ app.whenReady().then(async () => {
     if (ext === '.dxf') check('valid dxf', /^\s*0\s*\r?\nSECTION/.test(fs.readFileSync(tab.path, 'latin1').slice(0, 100)));
   }
   // new files of every kind
-  for (const k of ['doc', 'sheet', 'slides', 'cad']) {
+  for (const k of ['doc', 'sheet', 'slides']) {
     await js(`await App.newFile('${k}')`);
     let ready = false;
     for (let n = 0; n < 80 && !ready; n++) { await wait(500); ready = await js(`const t = App.active(); return !!(t && t.craft && t.editor.ready)`); }

@@ -70,7 +70,8 @@
   let settings = { editors: 'craft', crafts: {} };
   let settingsLoaded = false;
   const settingsReady = window.api.settingsGet().then((s) => { settings = s; settingsLoaded = true; });
-  const useCraft = (kind) => settings.editors !== 'classic' && settings.crafts && settings.crafts[kind];
+  // drawings open in OfficeStudio's own viewer unless CADCraft is chosen (it is slower on big DWG)
+  const useCraft = (kind) => !!(settings.crafts && settings.crafts[kind]) && (kind === 'cad' ? settings.cadEditor === 'craft' : settings.editors !== 'classic');
 
   function makeCraftTab({ kind, name, path, savePath, sourceExt, bytes, sendName }) {
     const t = { kind, name, path: savePath, openedFrom: path, sourceExt, dirty: false, craft: true, view: el('div') };
@@ -236,13 +237,16 @@
     const have = Object.values(settings.crafts || {}).some(Boolean);
     const r = await modal({
       title: 'Редакторы',
-      body: el('div', { class: 'editors-info', html: `<p><b>Полные</b> — WordCraft, GridCraft, DeckCraft и CADCraft: лента как в Office, рецензирование, сноски, стили, сводные таблицы, анимации, слои и листы чертежей и многое другое. Открытый код (MIT/Apache-2.0), авторы — команда ArtCraft.</p><p><b>Классические</b> — прежние редакторы OfficeStudio: проще, зато с красным карандашом и быстрым просмотром очень больших DWG.</p>${have ? '' : '<p style="color:var(--danger)">Полные редакторы в этой сборке не установлены.</p>'}<p>Уже открытые вкладки остаются как есть; выбор действует для файлов, которые вы откроете дальше.</p>` }),
-      fields: [{ name: 'editors', label: 'Открывать файлы в', type: 'select', options: [['craft', 'Полных редакторах (рекомендуется)'], ['classic', 'Классических редакторах OfficeStudio']], value: settings.editors === 'classic' ? 'classic' : 'craft' }],
+      body: el('div', { class: 'editors-info', html: `<p><b>Полные</b> — WordCraft, GridCraft и DeckCraft: лента как в Office, рецензирование, сноски, стили, сводные таблицы, анимации и многое другое. Открытый код (MIT/Apache-2.0), авторы — команда ArtCraft.</p><p><b>Классические</b> — прежние редакторы OfficeStudio: проще, зато с красным карандашом.</p><p><b>Чертежи</b> по умолчанию открываются в просмотрщике OfficeStudio — он быстрее, особенно на больших DWG. CADCraft можно включить отдельно.</p>${have ? '' : '<p style="color:var(--danger)">Полные редакторы в этой сборке не установлены.</p>'}<p>Уже открытые вкладки остаются как есть; выбор действует для файлов, которые вы откроете дальше.</p>` }),
+      fields: [
+        { name: 'editors', label: 'Документы, таблицы, презентации', type: 'select', options: [['craft', 'Полные редакторы (рекомендуется)'], ['classic', 'Классические редакторы OfficeStudio']], value: settings.editors === 'classic' ? 'classic' : 'craft' },
+        { name: 'cad', label: 'Чертежи DWG / DXF', type: 'select', options: [['classic', 'Просмотрщик OfficeStudio (быстрый, рекомендуется)'], ['craft', 'CADCraft']], value: settings.cadEditor === 'craft' ? 'craft' : 'classic' },
+      ],
       okText: 'Сохранить',
     });
     if (!r) return;
-    settings = await window.api.settingsSet({ editors: r.editors });
-    toast(r.editors === 'classic' ? 'Файлы будут открываться в классических редакторах' : 'Файлы будут открываться в полных редакторах');
+    settings = await window.api.settingsSet({ editors: r.editors, cadEditor: r.cad });
+    toast('Сохранено. Выбор действует для файлов, которые вы откроете дальше.');
   }
   async function refreshRecent() {
     const list = await window.api.getRecent();
