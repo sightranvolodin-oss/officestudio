@@ -44,7 +44,10 @@ function craftsInstalled() {
 // ------------------------------------------------------------------ settings
 const settingsFile = () => path.join(app.getPath('userData'), 'settings.json');
 function getSettings() {
-  try { return { editors: 'craft', ...JSON.parse(fs.readFileSync(settingsFile(), 'utf8')) }; } catch { return { editors: 'craft' }; }
+  let s = { editors: 'craft' };
+  try { s = { ...s, ...JSON.parse(fs.readFileSync(settingsFile(), 'utf8')) }; } catch {}
+  if (process.env.OS_EDITORS) s.editors = process.env.OS_EDITORS; // automated tests
+  return s;
 }
 function setSettings(patch) {
   const s = { ...getSettings(), ...patch };
@@ -428,7 +431,7 @@ function menu() {
         { label: 'Проверить обновления…', click: send('check-updates'), cmd: 'check-updates' },
         { label: 'Горячие клавиши', click: send('shortcuts'), cmd: 'shortcuts' },
         { label: 'Условия использования', click: send('terms'), cmd: 'terms' },
-        { label: 'О программе', click: () => dialog.showMessageBox(win, { type: 'info', title: 'О программе', message: 'OfficeStudio ' + app.getVersion(), detail: 'Документы (DOCX), таблицы (XLSX, CSV), презентации (PPTX) и чертежи (DWG/DXF).\n\nПрограмма предоставляется «как есть», без каких-либо гарантий. Вы используете её на свой страх и риск; автор не несёт ответственности за любой ущерб, в том числе за потерю данных. Подробно — Справка → Условия использования.\n\nЛицензия GNU GPL v3. Чтение DWG: LibreDWG (GPL-3.0). Формулы: HyperFormula (GPL-3.0).' }) },
+        { label: 'О программе', click: () => dialog.showMessageBox(win, { type: 'info', title: 'О программе', message: 'OfficeStudio ' + app.getVersion(), detail: 'Документы (DOCX), таблицы (XLSX, CSV), презентации (PPTX) и чертежи (DWG/DXF).\n\nПрограмма предоставляется «как есть», без каких-либо гарантий. Вы используете её на свой страх и риск; автор не несёт ответственности за любой ущерб, в том числе за потерю данных. Подробно — Справка → Условия использования.\n\nЛицензия GNU GPL v3. Чтение DWG: LibreDWG (GPL-3.0). Формулы: HyperFormula (GPL-3.0).\n\nВстроенные редакторы WordCraft, GridCraft, DeckCraft и CADCraft — открытые программы команды ArtCraft (github.com/storytold, лицензия MIT или Apache-2.0); DeckCraft собран с доработкой OfficeStudio для обмена файлами. OfficeStudio не связана с ArtCraft.' }) },
       ],
     },
   ];

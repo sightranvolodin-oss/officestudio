@@ -9,7 +9,36 @@ on:
 permissions:
   contents: write
 jobs:
+  # the embedded editors (WordCraft, GridCraft, DeckCraft, CADCraft): scripts/build-crafts.sh
+  crafts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: .crafts-work/deckcraft-* -> target
+          cache-on-failure: true
+      - uses: storytold/craft-common-actions/actions/install-trunk@main
+      - name: Build
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CARGO_TERM_COLOR: never
+        run: scripts/build-crafts.sh "$PWD/crafts" 2>&1 | tee build.log; exit ${PIPESTATUS[0]}
+      - name: Report failure
+        if: failure()
+        run: (grep -n -B2 -A14 -E '^(error|warning: unused)|error\[' build.log | head -150; tail -n 15 build.log) | sed 's/^/::error::/'; true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: crafts
+          path: crafts
+          include-hidden-files: true
+          if-no-files-found: error
   windows:
+    needs: crafts
     runs-on: windows-latest
     defaults:
       run:
@@ -21,6 +50,12 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          name: crafts
+          path: crafts
+      - name: Check the embedded editors
+        run: for a in wordcraft gridcraft deckcraft cadcraft; do test -f crafts/$a/index.html || { echo "::error::crafts/$a missing"; exit 1; }; done
       - name: Build
         run: npx electron-builder --win nsis portable --x64 --publish never 2>&1 | tee build.log; exit ${PIPESTATUS[0]}
       - name: Publish release

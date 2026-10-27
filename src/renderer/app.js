@@ -68,7 +68,8 @@
 
   // ---------------------------------------------------------------- editors: embedded (Craft) or classic
   let settings = { editors: 'craft', crafts: {} };
-  const settingsReady = window.api.settingsGet().then((s) => { settings = s; });
+  let settingsLoaded = false;
+  const settingsReady = window.api.settingsGet().then((s) => { settings = s; settingsLoaded = true; });
   const useCraft = (kind) => settings.editors !== 'classic' && settings.crafts && settings.crafts[kind];
 
   function makeCraftTab({ kind, name, path, savePath, sourceExt, bytes, sendName }) {
@@ -115,8 +116,8 @@
     return t;
   }
 
-  async function newFile(kind, { classic = false } = {}) {
-    await settingsReady;
+  function newFile(kind, { classic = false } = {}) {
+    if (!settingsLoaded) return settingsReady.then(() => newFile(kind, { classic }));
     counter[kind]++;
     const name = `${KIND[kind].newName}${counter[kind] > 1 ? ' ' + counter[kind] : ''}`;
     if (!classic && useCraft(kind)) return makeCraftTab({ kind, name });

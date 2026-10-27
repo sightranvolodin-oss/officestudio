@@ -34,13 +34,14 @@
       this.opts = opts;
       this.pendingSave = null;
       this.ready = false;
-      this.bridge = this.cfg.app !== 'deckcraft';
+      // DeckCraft speaks the bridge in OfficeStudio's own build of it; an upstream build doesn't
+      this.bridge = true;
       let bytes = data && data.bytes;
       let name = (data && data.sendName) || '';
       if (!bytes && this.kind === 'cad') { bytes = new TextEncoder().encode(EMPTY_DXF); name = this.tab.name.replace(/\.[^.]+$/, '') + '.dxf'; }
       this.file = bytes ? { name, bytes } : null;
       view.classList.add('craft-view');
-      const q = this.bridge ? 'host=parent' : 'blank';
+      const q = this.cfg.app === 'deckcraft' ? 'host=parent&blank' : 'host=parent';
       this.frame = el('iframe', { class: 'craft-frame', src: `crafts/${this.cfg.app}/index.html?${q}`, allow: 'clipboard-read; clipboard-write; fullscreen; local-fonts', title: this.tab.name });
       this.loading = el('div', { class: 'craft-loading', html: '<div class="spin"></div><div>Загрузка редактора…</div>' });
       view.append(this.frame, this.loading);
@@ -94,7 +95,19 @@
 
     /** DeckCraft: wait for its canvas, drop the file on it, catch its downloads, guess «unsaved» */
     frameLoaded() {
-      if (this.bridge) return;
+      if (this.cfg.app !== 'deckcraft') return;
+      // no `deckcraft:ready` within a few seconds of its canvas appearing: an upstream build
+      const waitBridge = (n) => {
+        if (this.ready || this.destroyed) return;
+        let started = false;
+        try { started = !!this.win.document.getElementById('deckcraft_canvas') && !this.win.document.getElementById('deckcraft_loading'); } catch {}
+        if (!started || n < 20) return setTimeout(() => waitBridge(started ? n + 1 : n), 300);
+        this.bridge = false;
+        this.legacyDeck();
+      };
+      waitBridge(0);
+    }
+    legacyDeck() {
       const w = this.win;
       if (!w) return;
       const self = this;

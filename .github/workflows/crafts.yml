@@ -22,10 +22,11 @@ jobs:
       - name: Build
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CARGO_TERM_COLOR: never
         run: scripts/build-crafts.sh "$PWD/out" 2>&1 | tee build.log; exit ${PIPESTATUS[0]}
       - name: Report failure
         if: failure()
-        run: tail -n 60 build.log | sed 's/^/::error::/'; true
+        run: (grep -n -B2 -A14 -E '^(error|warning: unused)|error\[' build.log | head -150; tail -n 15 build.log) | sed 's/^/::error::/'; true
       - name: Push to the crafts branch
         run: |
           set -e

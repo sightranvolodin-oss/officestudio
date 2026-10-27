@@ -236,6 +236,8 @@ body.dragging #drop-hint { display: grid; }
 .cad-canvas-wrap { flex: 1; position: relative; background: #1b1e24; overflow: hidden; }
 .cad-canvas-wrap canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
 .cad-canvas-wrap canvas.overlay { cursor: none; }
+/* on a layout sheet the drawing cursor (crosshair) is not drawn: show the system one */
+.cad-canvas-wrap.paper-mode canvas.overlay { cursor: crosshair; }
 .cad-side { width: 268px; flex: none; border-left: 1px solid var(--line); background: #fafbfc; display: flex; flex-direction: column; overflow: hidden; }
 .layers-box { display: flex; flex-direction: column; flex: 1 1 55%; min-height: 140px; border-bottom: 1px solid var(--line); }
 .layer-list { flex: 1; overflow: auto; padding-bottom: 4px; }
