@@ -391,7 +391,12 @@ body.dragging #drop-hint { display: grid; }
 .doc-hf { position: absolute; font: 9pt Calibri, Carlito, 'Segoe UI', Arial, sans-serif; color: #5b6575; white-space: pre-wrap; pointer-events: auto; cursor: pointer; border-radius: 3px; }
 .doc-hf:hover { background: #eef3fd; outline: 1px dashed #9db8ec; }
 .doc-page .pg-push { margin-top: var(--pg) !important; }
-.doc-page tr.pg-push > td, .doc-page tr.pg-push > th { padding-top: calc(4px + var(--pg)) !important; }
+.doc-page .pg-split::before { content: ''; float: left; width: 100%; height: var(--pgh); shape-outside: var(--pgs); pointer-events: none; }
+.doc-page td.pg-split, .doc-page th.pg-split { vertical-align: top !important; background-image: var(--pgbi, none) !important; background-position: var(--pgbp, 0 0) !important; background-size: var(--pgbs, auto) !important; background-repeat: no-repeat !important; }
+.doc-page tr.pg-sp { user-select: none; }
+.doc-page tr.pg-gap > td { border-top-style: none !important; border-bottom-style: none !important; border-left: hidden !important; border-right: hidden !important; padding: 0 !important; background: none !important; }
+/* nothing is drawn between the pages (bottom margin, gap, top margin) — like on paper */
+.doc-page { -webkit-mask-image: linear-gradient(#000, #000 var(--mc), transparent var(--mc)); -webkit-mask-size: 100% var(--mp); -webkit-mask-position: 0 var(--mt); -webkit-mask-repeat: repeat-y; }
 .doc-page .toc { border: 1px solid #dfe3ea; border-radius: 6px; padding: 8px 12px 10px; margin: 6pt 0 12pt; background: #fbfcfe; cursor: default; user-select: none; }
 .doc-page .toc-title { font-size: 14pt; font-weight: 600; color: #1f3864; margin-bottom: 6px; }
 .doc-page .toc-e { display: flex; align-items: baseline; gap: 4px; cursor: pointer; line-height: 1.6; }

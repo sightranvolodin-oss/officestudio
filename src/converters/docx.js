@@ -198,6 +198,24 @@ function applyMath(xml, list) {
 }
 
 // html-to-docx works best with inline styles; normalise a few editor quirks first
+/** positions (in document order) of the table rows marked as header rows */
+function headerRowIndexes(html) {
+  const out = [];
+  let i = 0;
+  html.replace(/<tr\b([^>]*)>/gi, (m, attrs) => { if (/\bdata-hdr="1"/.test(attrs)) out.push(i); i++; return m; });
+  return out;
+}
+/** <w:tblHeader/> for those rows: Word repeats them at the top of every page */
+function applyHeaderRows(xml, idx) {
+  if (!idx.length) return xml;
+  const want = new Set(idx);
+  let i = 0;
+  return xml.replace(/<w:tr\b[^>]*?(\/?)>(\s*<w:trPr>)?/g, (m, selfClose, trPr) => {
+    const k = i++;
+    if (selfClose || !want.has(k)) return m;
+    return trPr ? m + '<w:tblHeader/>' : m + '<w:trPr><w:tblHeader/></w:trPr>';
+  });
+}
 function prepareHtml(html, mathList = []) {
   return addParaMarkers(extractMath(html, mathList))
     // execCommand('fontSize') produces <font size=N>; map to point sizes
@@ -248,10 +266,10 @@ async function fixPageFields(buffer) {
   return changed ? zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' }) : buffer;
 }
 
-async function fixParagraphs(buffer, mathList = []) {
+async function fixParagraphs(buffer, mathList = [], hdrRows = []) {
   const zip = await JSZip.loadAsync(buffer);
   const xml = await zip.file('word/document.xml').async('string');
-  const fixed = applyMath(applyParaMarkers(xml), mathList);
+  const fixed = applyHeaderRows(applyMath(applyParaMarkers(xml), mathList), hdrRows);
   if (fixed === xml) return buffer;
   zip.file('word/document.xml', fixed);
   return zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' });
@@ -333,7 +351,7 @@ async function htmlToDocx(html, meta = {}, inks = [], doc = null) {
     footerType: 'default',
   }, footer ? hfHtml(footer, d.footerAlign || 'center') : null);
   let out = Buffer.isBuffer(buffer) ? buffer : Buffer.from(await buffer.arrayBuffer());
-  out = await fixParagraphs(out, mathList);
+  out = await fixParagraphs(out, mathList, headerRowIndexes(prepared));
   if (header || footer) out = await fixPageFields(out);
   return inks && inks.length ? embedInks(out, inks) : out;
 }

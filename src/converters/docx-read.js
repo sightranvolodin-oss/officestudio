@@ -312,7 +312,11 @@ async function docxToHtmlNative(buffer) {
 
   async function renderTable(tbl) {
     // grid positions of every cell, so vertically merged cells get a rowspan
-    const rows = kids(tbl, 'tr').map((tr) => {
+    const trs = kids(tbl, 'tr');
+    // rows marked «repeat as header row» (only the ones at the top of the table count)
+    let hdrN = 0;
+    while (hdrN < trs.length && kid(kid(trs[hdrN], 'trPr'), 'tblHeader') && wattr(kid(kid(trs[hdrN], 'trPr'), 'tblHeader'), 'val') !== '0' && wattr(kid(kid(trs[hdrN], 'trPr'), 'tblHeader'), 'val') !== 'false') hdrN++;
+    const rows = trs.map((tr) => {
       let col = 0;
       return kids(tr, 'tc').map((tc) => {
         const tcPr = kid(tc, 'tcPr');
@@ -331,8 +335,8 @@ async function docxToHtmlNative(buffer) {
       }
     }));
     let html = '<table>';
-    for (const row of rows) {
-      html += '<tr>';
+    for (const [ri, row] of rows.entries()) {
+      html += ri < hdrN ? '<tr data-hdr="1">' : '<tr>';
       for (const c of row) {
         if (c.cont) continue;
         const shd = wattr(kid(c.tcPr, 'shd'), 'fill');

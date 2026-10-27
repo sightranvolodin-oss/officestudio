@@ -292,21 +292,27 @@
       const walk = (parent) => {
         for (const c of parent.children) {
           if (c.tagName === 'UL' || c.tagName === 'OL') walk(c);
-          else if (c.tagName === 'TABLE') { for (const tr of c.rows) out.push(tr); }
+          else if (c.tagName === 'TABLE') { for (const tr of c.rows) if (!tr.classList.contains('pg-sp')) out.push(tr); }
           else out.push(c);
         }
       };
       walk(this.page);
       return out;
     }
-    /**
-     * Word-like pages: a block that would cross the bottom margin is pushed to the next page with a
-     * temporary margin (never saved). Table rows are pushed with cell padding.
-     */
+    /** removes the on-screen page layout (spacers, pushes, splits) — it is never part of the document */
+    clearPg(root = this.page) {
+      root.querySelectorAll('tr.pg-sp').forEach((r) => r.remove());
+      root.querySelectorAll('.pg-push, .pg-split').forEach((b) => {
+        b.classList.remove('pg-push', 'pg-split');
+        for (const v of ['--pg', '--pgh', '--pgs', '--pgbi', '--pgbp', '--pgbs']) b.style.removeProperty(v);
+        if (!b.getAttribute('style')) b.removeAttribute('style');
+        if (!b.className) b.removeAttribute('class');
+      });
+    }
     /** lays the pages out until the result is stable (a change of geometry can need a second pass) */
     paginate() {
       if (!this.page.isConnected) return;
-      const sig = () => Array.from(this.page.querySelectorAll('.pg-push')).map((b) => Math.round(parseFloat(b.style.getPropertyValue('--pg')) || 0)).join(',') + '|' + this.pageCount;
+      const sig = () => Array.from(this.page.querySelectorAll('.pg-push, .pg-split, tr.pg-sp')).map((b) => b.tagName + Math.round(parseFloat(b.style.getPropertyValue('--pg') || b.style.height) || 0) + (b.style.getPropertyValue('--pgs') || '')).join(',') + '|' + this.pageCount;
       let last = null;
       for (let i = 0; i < 4; i++) {
         this.paginateOnce();
@@ -315,66 +321,189 @@
         last = now;
       }
     }
+    /**
+     * Pages like in Word, without touching the document:
+     *  - a paragraph that crosses the bottom of a page continues on the next one (its lines flow around
+     *    an invisible float with a gap), keeping at least 2 lines on each page (widow/orphan control);
+     *  - a table row that does not fit moves to the next page whole (the table is split between rows,
+     *    the rows marked as header repeat at the top of every page); a row taller than a page is split;
+     *  - headings and table header rows stay with what follows them; page breaks start a new page.
+     */
     paginateOnce() {
       if (!this.page.isConnected) return;
       const g = this.geom, z = this.zoom;
       const contentH = g.H - g.mt - g.mb, pitch = g.H + SHEET_GAP;
-      // reset previous pushes
-      this.page.querySelectorAll('.pg-push').forEach((b) => { b.classList.remove('pg-push'); b.style.removeProperty('--pg'); if (!b.getAttribute('style')) b.removeAttribute('style'); if (!b.className) b.removeAttribute('class'); });
-      const top0 = () => this.page.getBoundingClientRect().top / z + g.mt;
-      const t0 = top0();
+      this.clearPg();
+      this.page.style.setProperty('--mc', contentH + 'px');
+      this.page.style.setProperty('--mp', pitch + 'px');
+      this.page.style.setProperty('--mt', g.mt + 'px');
+      // measured from the page every time: scroll anchoring can move the page while the layout changes
+      const docY = (v) => (v - this.page.getBoundingClientRect().top) / z - g.mt;
+      const pageOf = (y) => Math.floor((y + 0.5) / pitch);
+      const limitOf = (y) => pageOf(y) * pitch + contentH;
       let forceNext = false;
       const pages = []; // page index of every heading (for the table of contents)
-      // a pushed table row keeps its border where it is and moves its content down by cell padding
-      const topOf = (b) => b.getBoundingClientRect().top / z - t0 + (b.tagName === 'TR' ? parseFloat(b.style.getPropertyValue('--pg')) || 0 : 0);
+      const topOf = (b) => docY(b.getBoundingClientRect().top);
       const pushTo = (b, target) => {
-        if (b.tagName === 'TR') {
-          const base = b.getBoundingClientRect().top / z - t0;
-          b.classList.add('pg-push');
-          b.style.setProperty('--pg', Math.max(0, target - base) + 'px');
-          return;
-        }
         // margins collapse with the previous block, so measure and correct
-        let y = topOf(b);
-        let push = target - y;
+        let push = target - topOf(b);
         for (let k = 0; k < 3 && Math.abs(push) > 0.5; k++) {
           const cur = parseFloat(b.style.getPropertyValue('--pg')) || 0;
           b.classList.add('pg-push');
           b.style.setProperty('--pg', Math.max(0, cur + push) + 'px');
-          y = topOf(b);
-          push = target - y;
+          push = target - topOf(b);
         }
       };
-      let prev = null;
-      for (const b of this.flowBlocks()) {
-        if (b.classList.contains('page-break')) { forceNext = true; continue; }
-        const r = b.getBoundingClientRect();
-        const y = topOf(b);
-        const h = r.height / z - (y - r.top / z + t0);
-        const pi = Math.floor(y / pitch);
-        const local = y - pi * pitch;
-        let target = null;
-        if (forceNext && local > 0.5) target = (pi + 1) * pitch;
-        else if (local >= contentH - 0.5) target = (pi + 1) * pitch;
-        else if (local + h > contentH + 0.5 && h <= contentH && local > 0.5) target = (pi + 1) * pitch;
-        forceNext = false;
-        if (target != null) {
-          // a heading never stays alone at the bottom of a page: it moves together with its text
-          if (prev && /^H[1-6]$/.test(prev.tagName)) {
-            const py = topOf(prev);
-            const ppi = Math.floor(py / pitch);
-            if (ppi === pi && py - ppi * pitch > 0.5) {
-              pushTo(prev, target);
-              if (pages.length && pages[pages.length - 1][0] === prev) pages[pages.length - 1][1] = pi + 2;
+      const isHdr = (tr) => tr && tr.tagName === 'TR' && tr.dataset.hdr === '1';
+      const hdrRows = (table) => { const out = []; for (const r of table.rows) { if (r.classList.contains('pg-sp')) continue; if (!isHdr(r)) break; out.push(r); } return out; };
+      // a spacer row with the header rows repeated: the table ends on this page and goes on on the next
+      const spacerBefore = (tr, target) => {
+        const table = tr.closest('table');
+        const hdr = hdrRows(table).filter((r) => r !== tr);
+        const repeat = isHdr(tr) ? [] : hdr;
+        const sp = document.createElement('tr');
+        sp.className = 'pg-sp pg-gap';
+        sp.setAttribute('contenteditable', 'false');
+        const td = document.createElement('td');
+        td.colSpan = Math.max(1, ...Array.from(table.rows).map((r) => Array.from(r.cells).reduce((n, c) => n + (c.colSpan || 1), 0)));
+        sp.append(td);
+        tr.before(sp);
+        const clones = repeat.map((r) => { const c = r.cloneNode(true); c.className = 'pg-sp'; c.removeAttribute('data-hdr'); c.setAttribute('contenteditable', 'false'); c.querySelectorAll('[id]').forEach((n) => n.removeAttribute('id')); tr.before(c); return c; });
+        // the spacer fills the rest of this page; the repeated header starts the next page
+        const first = clones[0] || tr;
+        let h = Math.max(0, target - topOf(first));
+        sp.style.height = h + 'px';
+        for (let k = 0; k < 3; k++) {
+          const d = target - topOf(first);
+          if (Math.abs(d) < 0.5) break;
+          h = Math.max(0, h + d);
+          sp.style.height = h + 'px';
+        }
+      };
+      /** visual lines of a block: [{top, bottom}] in document coordinates */
+      const lineBoxes = (b) => {
+        const r = document.createRange();
+        r.selectNodeContents(b);
+        const rects = Array.from(r.getClientRects()).filter((q) => q.height > 0 && q.width > 0).map((q) => ({ top: docY(q.top), bottom: docY(q.bottom) })).sort((a, c) => a.top - c.top);
+        const lines = [];
+        for (const q of rects) {
+          const l = lines[lines.length - 1];
+          if (l && q.top < l.bottom - 2) l.bottom = Math.max(l.bottom, q.bottom);
+          else lines.push({ ...q });
+        }
+        return lines;
+      };
+      const contentTop = (b) => {
+        const cs = getComputedStyle(b);
+        return topOf(b) + (parseFloat(cs.borderTopWidth) || 0) + (parseFloat(cs.paddingTop) || 0);
+      };
+      const setGaps = (b, gaps, ct) => {
+        if (!gaps.length) return;
+        const pts = ['0 0'];
+        for (const [a, e] of gaps) pts.push(`0 ${(a - ct).toFixed(1)}px`, `100% ${(a - ct).toFixed(1)}px`, `100% ${(e - ct).toFixed(1)}px`, `0 ${(e - ct).toFixed(1)}px`);
+        b.classList.add('pg-split');
+        b.style.setProperty('--pgh', (gaps[gaps.length - 1][1] - ct).toFixed(1) + 'px');
+        b.style.setProperty('--pgs', `polygon(${pts.join(',')})`);
+      };
+      const SPLIT = /^(P|LI|BLOCKQUOTE|DIV|PRE|ADDRESS)$/;
+      const canSplit = (b) => SPLIT.test(b.tagName) && !b.classList.contains('toc') && !b.classList.contains('page-break') && !b.querySelector('p,div,table,ul,ol,li,h1,h2,h3,h4,h5,h6,blockquote,.os-math-block');
+      /** splits a paragraph across pages; false when it should move to the next page whole */
+      const splitBlock = (b) => {
+        const gaps = [];
+        const ct = contentTop(b);
+        for (let guard = 0; guard < 200; guard++) {
+          const lines = lineBoxes(b);
+          let i = lines.findIndex((l) => l.bottom > limitOf(l.top) + 0.5);
+          if (i < 0) return true;
+          const pi = pageOf(lines[i].top);
+          const first = lines.findIndex((l) => pageOf(l.top) === pi);
+          if (lines.length - i < 2) i = lines.length - 2; // widow: the last line never goes alone
+          if (i - first < 2) {
+            if (!gaps.length) return false; // orphan: the first line never stays alone
+            i = first + 1;
+            if (i >= lines.length) return true;
+          }
+          const a = i > 0 ? (lines[i - 1].bottom + lines[i].top) / 2 + 0.5 : lines[i].top;
+          gaps.push([a, (pi + 1) * pitch]);
+          setGaps(b, gaps, ct);
+        }
+        return true;
+      };
+      /** a row taller than a page: its cells flow across pages */
+      const splitRow = (tr) => {
+        const cells = Array.from(tr.cells);
+        const bands = [];
+        for (let guard = 0; guard < 50; guard++) {
+          const y = topOf(tr), bottom = y + tr.getBoundingClientRect().height / z;
+          const lim = limitOf(bands.length ? bands[bands.length - 1][1] : y);
+          if (bottom <= lim + 0.5) break;
+          bands.push([lim, (pageOf(lim) + 1) * pitch]);
+          for (const td of cells) {
+            const ct = contentTop(td);
+            setGaps(td, bands, ct);
+            const cs = getComputedStyle(td);
+            if (cs.borderTopStyle !== 'none' && parseFloat(cs.borderTopWidth) > 0) {
+              const c = cs.borderTopColor, pt = topOf(td);
+              const imgs = [], pos = [];
+              for (const [a, e] of bands) { imgs.push(`linear-gradient(${c},${c})`, `linear-gradient(${c},${c})`); pos.push(`0 ${(a - pt - 1).toFixed(1)}px`, `0 ${(e - pt).toFixed(1)}px`); }
+              td.style.setProperty('--pgbi', imgs.join(','));
+              td.style.setProperty('--pgbp', pos.join(','));
+              td.style.setProperty('--pgbs', imgs.map(() => '100% 1px').join(','));
             }
           }
-          const ny = topOf(b);
-          const npi = Math.floor(ny / pitch), nlocal = ny - npi * pitch;
-          if (nlocal > 0.5 && !(nlocal + h <= contentH + 0.5 && npi > pi)) pushTo(b, Math.max(target, (npi + (nlocal >= contentH - 0.5 || nlocal + h > contentH + 0.5 ? 1 : 0)) * pitch));
         }
-        if (/^H[1-3]$/.test(b.tagName)) pages.push([b, Math.floor(topOf(b) / pitch) + 1]);
-        prev = b;
+      };
+      const blocks = this.flowBlocks();
+      // what has to stay on the same page as the next block
+      const keepNext = (b) => /^H[1-6]$/.test(b.tagName) || isHdr(b);
+      /** the block to move: b, or the heading / table header in front of it */
+      const anchorOf = (idx) => {
+        let k = idx;
+        const lift = (j) => (blocks[j].tagName === 'TR' && blocks[j] === blocks[j].closest('table').rows[0] ? blocks[j].closest('table') : blocks[j]);
+        while (k > 0) {
+          const p = blocks[k - 1];
+          if (!keepNext(p)) break;
+          const py = topOf(p);
+          if (pageOf(py) !== pageOf(topOf(blocks[idx])) || py - pageOf(py) * pitch < 0.5) break;
+          k--;
+        }
+        return { el: lift(k), idx: k };
+      };
+      const moveTo = (idx, target) => {
+        const { el: m } = anchorOf(idx);
+        if (m.tagName === 'TR') spacerBefore(m, target); else pushTo(m, target);
+      };
+      for (let idx = 0; idx < blocks.length; idx++) {
+        const b = blocks[idx];
+        if (b.classList.contains('page-break')) { forceNext = true; continue; }
+        const r = b.getBoundingClientRect();
+        const y = topOf(b), h = r.height / z;
+        const pi = pageOf(y);
+        const local = y - pi * pitch;
+        if (forceNext) {
+          forceNext = false;
+          if (local > 0.5) moveTo(idx, (pi + 1) * pitch);
+          continue;
+        }
+        if (local >= contentH - 0.5) { moveTo(idx, (pi + 1) * pitch); continue; }
+        if (local + h <= contentH + 0.5) continue;
+        // crosses the bottom of the page
+        if (b.tagName === 'TR') {
+          if (h <= contentH && local > 0.5) {
+            const table = b.closest('table');
+            const extra = isHdr(b) ? 0 : hdrRows(table).reduce((s, x) => s + x.getBoundingClientRect().height / z, 0);
+            if (h + extra <= contentH) { moveTo(idx, (pi + 1) * pitch); continue; }
+          }
+          splitRow(b);
+          continue;
+        }
+        if (/^H[1-6]$/.test(b.tagName) || !canSplit(b) || !splitBlock(b)) {
+          b.classList.remove('pg-split'); b.style.removeProperty('--pgh'); b.style.removeProperty('--pgs');
+          if (local > 0.5 && h <= contentH) moveTo(idx, (pi + 1) * pitch);
+          else if (canSplit(b)) splitBlock(b);
+        }
       }
+      for (const b of blocks) if (/^H[1-3]$/.test(b.tagName)) pages.push([b, pageOf(topOf(b)) + 1]);
       const bottom = this.page.scrollHeight;
       const n = Math.max(1, Math.ceil((bottom - g.mb + 1) / pitch));
       this.pageCount = n;
@@ -649,6 +778,7 @@
       return td && this.page.contains(td) ? td : null;
     }
     tableOp(td, op) {
+      this.clearPg();
       const tr = td.parentElement, table = td.closest('table');
       const idx = Array.from(tr.children).indexOf(td);
       const rows = Array.from(table.rows);
@@ -668,6 +798,13 @@
       } else if (op === 'delCol') {
         if (tr.children.length === 1) table.remove();
         else for (const r of rows) r.children[idx] && r.children[idx].remove();
+      } else if (op === 'hdr') {
+        // header rows are the rows at the top of the table; Word repeats them on every page
+        const rs = rows.filter((r) => !r.classList.contains('pg-sp'));
+        const at = rs.indexOf(tr);
+        const on = tr.dataset.hdr !== '1';
+        rs.forEach((r, i) => { if (on ? i <= at : i >= at) { if (on) r.dataset.hdr = '1'; else delete r.dataset.hdr; } });
+        toast(on ? 'Строки заголовка будут повторяться на каждой странице' : 'Повтор строк заголовка выключен');
       } else if (op === 'delTable') table.remove();
       else if (op === 'shade') {
         UI.colorPicker(td, { current: '#d9e2f3', allowNone: true, noneLabel: 'Без заливки', onPick: (c) => { td.style.backgroundColor = c || ''; this.changed(); } });
@@ -869,7 +1006,7 @@
           const li = this.cellAt(getSelection().anchorNode) ? null : getSelection().anchorNode?.parentElement?.closest('li');
           const td = this.cellAt(getSelection().anchorNode);
           if (td && !e.shiftKey) {
-            const cells = Array.from(td.closest('table').querySelectorAll('td,th'));
+            const cells = Array.from(td.closest('table').querySelectorAll('td,th')).filter((c) => !c.closest('.pg-sp'));
             const next = cells[cells.indexOf(td) + 1];
             if (next) { const r = document.createRange(); r.selectNodeContents(next); r.collapse(true); getSelection().removeAllRanges(); getSelection().addRange(r); }
             else { this.tableOp(td, 'rowBelow'); this.page.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab' })); }
@@ -907,6 +1044,7 @@
             { label: 'Вставить столбец слева', icon: 'outdent', onClick: () => this.tableOp(td, 'colLeft') },
             { label: 'Вставить столбец справа', icon: 'indent', onClick: () => this.tableOp(td, 'colRight') },
             { label: 'Заливка ячейки…', icon: 'paint', onClick: () => this.tableOp(td, 'shade') },
+            { label: td.parentElement.dataset.hdr === '1' ? 'Не повторять строку заголовка' : 'Повторять как заголовок на каждой странице', icon: 'table', onClick: () => this.tableOp(td, 'hdr') },
             '-',
             { label: 'Удалить строку', icon: 'trash', onClick: () => this.tableOp(td, 'delRow') },
             { label: 'Удалить столбец', icon: 'trash', onClick: () => this.tableOp(td, 'delCol') },
@@ -965,6 +1103,7 @@
       clearTimeout(this.countTimer);
       this.countTimer = setTimeout(() => this.updateCounts(), 300);
       if (this.selImg) this.showImgHandle();
+      this.schedulePaginate();
     }
     // ------------------------------------------------------------ equations
     /** insert a new equation, or edit `span` (an existing .os-math) */
@@ -1066,7 +1205,9 @@
     }
     updateCounts() {
       this.updatePageLabel();
-      const text = this.page.innerText || '';
+      let text = this.page.innerText || '';
+      // the header rows repeated on every page are not part of the text
+      this.page.querySelectorAll('tr.pg-sp').forEach((r) => { const t = r.innerText; if (t && t.trim()) text = text.replace(t, ''); });
       const words = (text.match(/[\p{L}\p{N}]+/gu) || []).length;
       this.countEl.textContent = `Слов: ${words.toLocaleString('ru')}  ·  Знаков: ${text.replace(/\s/g, '').length.toLocaleString('ru')}`;
     }
@@ -1101,7 +1242,7 @@
       for (const c of [clone, inline]) {
         c.querySelectorAll('[data-osb]').forEach((n) => n.removeAttribute('data-osb'));
         // on-screen page layout is never saved
-        c.querySelectorAll('.pg-push').forEach((n) => { n.classList.remove('pg-push'); n.style.removeProperty('--pg'); if (!n.getAttribute('style')) n.removeAttribute('style'); });
+        this.clearPg(c);
         c.querySelectorAll('.toc').forEach((t) => { t.removeAttribute('contenteditable'); t.querySelectorAll('.toc-e').forEach((e) => { const tt = e.querySelector('.t'), nn = e.querySelector('.n'); e.outerHTML = `<p class="toc-p" style="margin:0 0 2pt ${(+(e.className.match(/toc-l(\d)/) || [0, 1])[1] - 1) * 18}px">${UI.esc(tt ? tt.textContent : '')} — ${nn ? nn.textContent : ''}</p>`; }); });
         this.clearMarks(c);
         c.querySelectorAll('img.sel').forEach((i) => i.classList.remove('sel'));
@@ -1314,7 +1455,7 @@
       for (const sh of Array.from(document.styleSheets)) {
         let rules;
         try { rules = sh.cssRules; } catch { continue; }
-        for (const r of Array.from(rules || [])) if (r.selectorText && /\.doc-page\b/.test(r.selectorText) && !/::selection|find-hit|img\.sel|pg-push/.test(r.selectorText)) out.push(r.cssText.replace(/\.doc-page\s*\{/, 'body {').replace(/\.doc-page /g, ''));
+        for (const r of Array.from(rules || [])) if (r.selectorText && /\.doc-page\b/.test(r.selectorText) && !/::selection|find-hit|img\.sel|pg-/.test(r.selectorText)) out.push(r.cssText.replace(/\.doc-page\s*\{/, 'body {').replace(/\.doc-page /g, ''));
       }
       return out.join('\n');
     }
