@@ -60,13 +60,14 @@ pub fn xform(g: &Geo, m: &M) -> Geo {
                 attribs: attribs.iter().map(|a| xt(a, m)).collect(),
             }
         }
-        Geo::Hatch { loops, solid, pattern } => Geo::Hatch {
+        Geo::Hatch { loops, solid, pattern, bg } => Geo::Hatch {
             loops: loops.iter().map(|lp| lp.iter().map(|v| {
                 let p = m.ap(v.p());
                 V { x: p.x, y: p.y, b: if refl { -v.b } else { v.b } }
             }).collect()).collect(),
             solid: *solid,
             pattern: pattern.iter().map(|pl| crate::tess::xform_pat(pl, m)).collect(),
+            bg: *bg,
         },
     }
 }

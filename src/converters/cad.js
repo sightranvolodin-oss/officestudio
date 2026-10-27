@@ -89,6 +89,7 @@ function compactDxf(file) {
   let afterSection = false;
   let rec = '';
   let skip = false;
+  let keepBg = false;
   let pos = 0;
   const sectionName = (d, a, b) => d.toString('latin1', a, b).trim();
   try {
@@ -146,7 +147,12 @@ function compactDxf(file) {
           if (section === 'OBJECTS') { if (rec !== 'LAYOUT') continue; }
           else if (code === 330 && rec === 'BLOCK') { /* block record handle: links layouts to their blocks */ }
           else if (code < 1100 && DROP_TABLE[code] === 1 && section !== 'HEADER') continue;
-          if (code >= 1000 && code <= 1071 && section !== 'TABLES') continue;
+          if (code >= 1000 && code <= 1071 && section !== 'TABLES') {
+            // only the hatch background colour (xdata HATCHBACKGROUNDCOLOR + 1071) is kept
+            if (code === 1001) { keepBg = vb - va >= 20 && d.toString('latin1', va, vb).trim() === 'HATCHBACKGROUNDCOLOR'; if (!keepBg) continue; }
+            else if (code === 1071 && keepBg) keepBg = false;
+            else continue;
+          }
         }
         // copy code digits and value
         o += d.copy(out, o, pairStart, e1 > pairStart && d[e1 - 1] === 13 ? e1 - 1 : e1); out[o++] = 10;

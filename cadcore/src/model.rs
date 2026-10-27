@@ -147,6 +147,9 @@ pub enum Geo {
         solid: bool,
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
         pattern: Vec<PatLine>,
+        /// background colour drawn under the pattern
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        bg: Option<u32>,
     },
 }
 fn is_one_u(v: &u32) -> bool {

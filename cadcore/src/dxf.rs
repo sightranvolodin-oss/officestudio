@@ -293,7 +293,10 @@ fn common(r: &Rec, ctx: &mut Ctx) -> (u32, Option<u32>, bool) {
     let layer = ctx.layers.get_or_add(lname, 0xffffff);
     let mut color = None;
     let mut by_block = false;
-    if let Some(tc) = r.i(420) {
+    // LibreDWG sometimes writes only one byte of a true colour (e.g. 420=127 for dark red 0x7F0000
+    // next to 62=244): AutoCAD shows those entities in their index colour, so prefer 62 there.
+    let aci = r.i(62).map(|ci| ci.unsigned_abs() as usize).filter(|ci| (1..256).contains(ci));
+    if let Some(tc) = r.i(420).filter(|tc| (*tc as u32 & 0xffffff) >= 256 || aci.is_none()) {
         color = Some((tc as u32) & 0xffffff);
     } else if let Some(ci) = r.i(62) {
         let ci = ci.unsigned_abs() as usize;
@@ -557,11 +560,30 @@ fn hatch_from(p: &[Tok], neg: bool) -> Option<Geo> {
             pl.ang = 180.0 - pl.ang;
         }
     }
+    // background colour under a pattern (AutoCAD 2011+ / Revit): xdata HATCHBACKGROUNDCOLOR, 1071 =
+    // colour method << 24 | value (0xC2 = RGB, 0xC3 = colour index)
+    let mut bg = None;
+    if let Some(k) = p.iter().position(|t| t.0 == 1001 && t.1.trim() == "HATCHBACKGROUNDCOLOR") {
+        if let Some(t) = p[k + 1..].iter().take(3).find(|t| t.0 == 1071) {
+            let v = iv(t.1) as u32;
+            bg = match v >> 24 {
+                0xC2 => Some(v & 0xffffff),
+                0xC3 => {
+                    let ci = (v & 0xff) as usize;
+                    (1..256).contains(&ci).then(|| ACI[ci])
+                }
+                _ => None,
+            };
+        }
+    }
+    if solid {
+        bg = None;
+    }
     if !solid && pattern.is_empty() {
         // e.g. a pattern we could not read: show as a light fill outline only
-        return Some(Geo::Hatch { loops, solid: false, pattern });
+        return Some(Geo::Hatch { loops, solid: false, pattern, bg });
     }
-    Some(Geo::Hatch { loops, solid, pattern })
+    Some(Geo::Hatch { loops, solid, pattern, bg })
 }
 
 /// Parse one entity record (pairs after its "0 TYPE"). Returns None for unsupported/invisible.

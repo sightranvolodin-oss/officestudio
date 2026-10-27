@@ -230,7 +230,7 @@ impl<'a> Tess<'a> {
                     out.text(if *m == M::ID { a.clone() } else { xform_text(a, m) }, c, l, al);
                 }
             }
-            Geo::Hatch { loops, solid, pattern } => {
+            Geo::Hatch { loops, solid, pattern, bg } => {
                 let polys: Vec<Vec<P>> = loops
                     .iter()
                     .map(|lp| {
@@ -246,6 +246,9 @@ impl<'a> Tess<'a> {
                 if *solid {
                     triangulate(&polys, &mut |a, b, cc| out.tri(a, b, cc, c, l, al));
                 } else if !pattern.is_empty() {
+                    if let Some(bgc) = bg {
+                        triangulate(&polys, &mut |a, b, cc| out.tri(a, b, cc, CMode::Rgb(*bgc), l, al));
+                    }
                     let pat: Vec<PatLine> = if *m == M::ID { pattern.clone() } else { pattern.iter().map(|pl| xform_pat(pl, m)).collect() };
                     hatch_lines(&polys, &pat, &mut |a, b| out.line(a, b, c, l, al));
                 } else {

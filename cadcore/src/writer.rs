@@ -372,7 +372,7 @@ fn write_ent(w: &mut W, e: &Ent, layer: &str, d: &Drawing, hatch_blocks: &mut Ve
                 text(w, layer, e, a);
             }
         }
-        Geo::Hatch { loops, solid, pattern } => {
+        Geo::Hatch { loops, solid, pattern, .. } => {
             // R12 has no HATCH: emit the fill as a block of SOLIDs / pattern LINEs and insert it
             let polys: Vec<Vec<P>> = loops
                 .iter()
