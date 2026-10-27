@@ -37,6 +37,21 @@ app.whenReady().then(async () => {
   wc.send('menu', 'annotate');
   await wait(300);
   check('overlay off, marks stay', !(await js(`return document.querySelector('.annot-layer').classList.contains('on')`)) && (await js(`return document.querySelector('.annot-layer').classList.contains('has')`)));
+  // the marks come back when the file is opened again
+  await js(`const t = App.active(); t.dirty = false; App.tabs(); document.querySelector('.tab.active .x').click()`);
+  await wait(1500);
+  await js(`await App.openPaths([${JSON.stringify(docx)}])`);
+  for (let k = 0; k < 60; k++) { await wait(500); if (await js(`const t = App.active(); return !!(t && t.craft && t.editor.ready)`)) break; }
+  await wait(800);
+  check('marks restored after reopening', (await js(`return (App.active().annot || []).length`)) === 1 && (await js(`return document.querySelector('.annot-layer').classList.contains('has')`)));
+  // Ctrl+/ pressed while the keyboard focus is inside the editor
+  await js(`const w = App.active().editor.win; w.dispatchEvent(new w.KeyboardEvent('keydown', { key: '.', code: 'Slash', ctrlKey: true, bubbles: true, cancelable: true }))`);
+  await wait(300);
+  check('Ctrl+/ inside the editor (any layout)', await js(`return document.querySelector('.annot-layer').classList.contains('on')`));
+  check('tab bar button shows the state', await js(`return document.getElementById('annot-btn').classList.contains('on')`));
+  await js(`document.getElementById('annot-btn').click()`);
+  await wait(400);
+  check('tab bar button turns it off', !(await js(`return document.querySelector('.annot-layer').classList.contains('on')`)));
   // switching tabs hides the marks of the other tab
   await js(`App.newFile('sheet')`);
   await wait(1500);

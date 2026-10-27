@@ -10,6 +10,13 @@
 
   const tabsEl = document.getElementById('tabs');
   let annot = null; // pencil marks over a tab (annot.js)
+  let lastAnnotate = 0;
+  /** Ctrl+/ by the physical key, whatever the keyboard layout and wherever the focus is */
+  const annotKey = (e) => {
+    if ((e.ctrlKey || e.metaKey) && !e.altKey && (e.code === 'Slash' || e.key === '/')) { e.preventDefault(); e.stopPropagation(); onMenu('annotate'); }
+  };
+  window.addEventListener('keydown', annotKey, true);
+  window.OS_ANNOT_KEY = annotKey;
   const viewsEl = document.getElementById('views');
   const tabs = [];
   let active = null;
@@ -285,10 +292,13 @@
       case 'redo': if (ed && ed.redo) ed.redo(); else document.execCommand('redo'); return;
       case 'find': if (ed && ed.find) ed.find(); return;
       case 'editors': return editorsDialog();
-      case 'annotate':
-        if (ed && ed.togglePencil) return ed.togglePencil();
-        if (!annot.tab) annot.show(active);
-        return annot.toggle();
+      case 'annotate': {
+        // the menu shortcut and the page's own key listener can both fire for one press
+        const now = Date.now();
+        if (now - lastAnnotate < 250) return;
+        lastAnnotate = now;
+        return toggleAnnotations();
+      }
       case 'next-tab': return activate(tabs[(tabs.indexOf(active) + 1) % tabs.length]);
       case 'prev-tab': return activate(tabs[(tabs.indexOf(active) - 1 + tabs.length) % tabs.length]);
       case 'shortcuts': return showShortcuts();
@@ -300,6 +310,13 @@
       case 'check-updates': return Updates.check(true);
       case 'terms': return showTerms(false);
     }
+  }
+  /** pencil marks: the classic editors' own pencil (saved in the file), otherwise the layer over the tab */
+  function toggleAnnotations() {
+    const ed = active && active.editor;
+    if (ed && ed.togglePencil) return ed.togglePencil();
+    if (!annot.tab) annot.show(active);
+    return annot.toggle();
   }
   async function closeAllDirty() {
     for (const t of [...tabs]) if (t.dirty && !(await closeTab(t))) return false;
@@ -415,6 +432,10 @@
 
   // ---------------------------------------------------------------- boot
   annot = new window.Annotations(viewsEl);
+  const annotBtn = document.getElementById('annot-btn');
+  annotBtn.innerHTML = icon('pencil', 16) + '<span>Пометки</span>';
+  annotBtn.addEventListener('click', toggleAnnotations);
+  annot.onToggle = (on) => annotBtn.classList.toggle('on', on);
   buildHome();
   addTab({ home: true, view: homeView });
   document.getElementById('tab-new').addEventListener('click', (e) => {

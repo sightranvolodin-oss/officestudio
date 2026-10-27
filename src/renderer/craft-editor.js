@@ -95,6 +95,8 @@
 
     /** DeckCraft: wait for its canvas, drop the file on it, catch its downloads, guess «unsaved» */
     frameLoaded() {
+      // Ctrl+/ (pencil marks) also when the keyboard focus is inside the editor
+      try { if (window.OS_ANNOT_KEY) this.win.addEventListener('keydown', window.OS_ANNOT_KEY, true); } catch {}
       if (this.cfg.app !== 'deckcraft') return;
       // no `deckcraft:ready` within a few seconds of its canvas appearing: an upstream build
       const waitBridge = (n) => {

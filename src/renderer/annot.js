@@ -55,7 +55,7 @@
       const undo = el('button', { class: 'annot-btn', title: 'Отменить (Ctrl+Z)', html: icon('undo', 16) });
       undo.addEventListener('click', () => this.undo());
       const clear = el('button', { class: 'annot-btn', title: 'Стереть все пометки на этой вкладке', html: icon('trash', 16) });
-      clear.addEventListener('click', () => { if (this.tab) { this.store().push({ clear: this.strokes().splice(0) }); this.draw(); } });
+      clear.addEventListener('click', () => { if (this.tab) { this.store().push({ clear: this.strokes().splice(0) }); this.draw(); this.changed(); } });
       const snap = el('button', { class: 'annot-btn', title: 'Сохранить снимок с пометками (PNG)', html: icon('image', 16) });
       snap.addEventListener('click', () => this.snapshot());
       const done = el('button', { class: 'annot-done', text: 'Готово (Esc)' });
@@ -70,11 +70,31 @@
     }
 
     strokes() { if (!this.tab) return []; this.tab.annot = this.tab.annot || []; return this.tab.annot; }
+    /** the file the marks belong to (remembered between sessions); none for a new, unsaved file */
+    key(tab) { return tab && !tab.home ? tab.path || tab.openedFrom || null : tab && tab.home ? 'home' : null; }
+    changed() {
+      const tab = this.tab;
+      const key = this.key(tab);
+      if (!key) return;
+      clearTimeout(this.saveT);
+      this.saveT = setTimeout(() => window.api.annotSet(key, { strokes: tab.annot || [] }), 400);
+    }
+    async restore(tab) {
+      const key = this.key(tab);
+      if (!key || tab.annotLoaded === key) return;
+      tab.annotLoaded = key;
+      const v = await window.api.annotGet(key);
+      if (v && v.strokes && v.strokes.length && !(tab.annot && tab.annot.length)) {
+        tab.annot = v.strokes;
+        if (this.tab === tab) this.draw();
+      }
+    }
     store() { if (!this.tab) return []; this.tab.annotUndo = this.tab.annotUndo || []; return this.tab.annotUndo; }
 
     /** the tab whose marks are shown (null: none) */
     show(tab) {
       this.tab = tab;
+      if (tab) this.restore(tab);
       if (!tab && this.on) this.setOn(false);
       this.draw();
     }
@@ -82,6 +102,7 @@
       this.on = v && !!this.tab;
       this.layer.classList.toggle('on', this.on);
       this.bar.classList.toggle('on', this.on);
+      if (this.onToggle) this.onToggle(this.on);
       if (this.on) toast('Пометки: рисуйте мышью поверх вкладки. Esc или Ctrl+/ — закончить.', null, 4000);
       this.draw();
     }
@@ -120,6 +141,7 @@
       this.strokes().push(s);
       this.store().push({ add: s });
       this.draw();
+      this.changed();
     }
     eraseAt([x, y]) {
       const list = this.strokes();
@@ -128,6 +150,7 @@
           this.store().push({ remove: list[i], at: i });
           list.splice(i, 1);
           this.draw();
+          this.changed();
           return;
         }
       }
@@ -140,6 +163,7 @@
       else if (u.remove) list.splice(Math.min(u.at, list.length), 0, u.remove);
       else if (u.clear) list.push(...u.clear);
       this.draw();
+      this.changed();
     }
     draw() {
       const ctx = this.canvas.getContext('2d');

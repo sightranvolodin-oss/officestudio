@@ -211,6 +211,16 @@ ipcMain.handle('craft-save', async (e, { target, name, bytes, saveAs, dir }) => 
     return { ok: false, error: err.message || String(err) };
   }
 });
+// pencil marks drawn over a tab, remembered per file
+const annotFile = () => path.join(app.getPath('userData'), 'annotations.json');
+function readAnnots() { try { return JSON.parse(fs.readFileSync(annotFile(), 'utf8')); } catch { return {}; } }
+ipcMain.handle('annot-get', (e, key) => readAnnots()[key] || null);
+ipcMain.handle('annot-set', (e, key, value) => {
+  const all = readAnnots();
+  if (value && value.strokes && value.strokes.length) all[key] = value; else delete all[key];
+  try { fs.mkdirSync(app.getPath('userData'), { recursive: true }); fs.writeFileSync(annotFile(), JSON.stringify(all)); } catch {}
+  return true;
+});
 // a part of the window (a tab with its pencil marks) as a PNG
 ipcMain.handle('save-screenshot', async (e, { rect, suggestedName }) => {
   try {
