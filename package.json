@@ -1,6 +1,6 @@
 {
   "name": "officestudio",
-  "version": "1.8.0",
+  "version": "1.9.0",
   "description": "Редактор DOCX, PPTX и DWG/DXF",
   "main": "src/main.js",
   "scripts": {
@@ -23,7 +23,8 @@
   "devDependencies": {
     "electron": "^45.0.0",
     "electron-builder": "^26.18.0",
-    "hyperformula": "^3.5.0"
+    "hyperformula": "^3.5.0",
+    "rtf.js": "^3.0.9"
   },
   "productName": "OfficeStudio",
   "build": {

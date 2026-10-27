@@ -406,3 +406,22 @@ body.dragging #drop-hint { display: grid; }
 .terms-agree { display: flex; gap: 8px; align-items: center; font-size: 13px; cursor: pointer; }
 .terms-agree input { width: 16px; height: 16px; }
 .modal:has(.terms-text), .modal:has(.upd-notes) { width: 640px; }
+
+/* ---------------------------------------------------------------- equations */
+.doc-page math { font-family: 'Cambria Math', 'STIX Two Math', 'Latin Modern Math', 'Times New Roman', serif; font-size: 1.12em; }
+.doc-page .os-math { display: inline-block; cursor: pointer; border-radius: 3px; padding: 0 1px; vertical-align: middle; }
+.doc-page .os-math:hover { background: #eef3fd; outline: 1px solid #b9d0fa; }
+.doc-page .os-math-block { display: block; text-align: center; margin: 4pt 0; }
+.doc-page .os-math-block math { display: block math; }
+.modal:has(.eq-dialog) { width: 720px; }
+.eq-pal { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+.eq-btn { min-width: 34px; height: 30px; padding: 0 7px; border: 1px solid var(--line); border-radius: 6px; background: #fff; cursor: pointer; font: 14px 'Cambria Math', 'Segoe UI', serif; }
+.eq-btn:hover { background: var(--hover); border-color: var(--line-strong); }
+.eq-input { width: 100%; height: 70px; box-sizing: border-box; font: 14px Consolas, 'Cascadia Mono', monospace; padding: 8px; resize: vertical; }
+.eq-hint { font-size: 11.5px; color: var(--muted); margin: 6px 0; }
+.eq-preview { min-height: 64px; display: grid; place-items: center; border: 1px dashed var(--line-strong); border-radius: 8px; padding: 10px; margin-bottom: 10px; background: #fff; overflow: auto; }
+.eq-preview math { font-family: 'Cambria Math', 'STIX Two Math', 'Latin Modern Math', 'Times New Roman', serif; font-size: 1.5em; }
+
+.doc-page .os-textbox { display: inline-block; border: 1px solid #b9c0cc; padding: 4px 8px; margin: 2px 0; vertical-align: top; max-width: 100%; background: #fff; }
+.doc-page sup.os-fn { color: #2b6cdf; }
+.doc-page img.os-bad-img { min-width: 120px; min-height: 30px; outline: 1px dashed #c0392b; }

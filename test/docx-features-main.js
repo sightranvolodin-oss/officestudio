@@ -1,0 +1,44 @@
+// Word features test: equations (OMML) shown and saved back, new equations, WMF/EMF pictures,
+// footnotes, text boxes, merged cells, pages. Usage: xvfb-run -a electron --no-sandbox test/docx-features-main.js <outDir>
+const { app, BrowserWindow } = require('electron');
+const path = require('path');
+const fs = require('fs');
+const out = process.argv[process.argv.length - 1];
+fs.mkdirSync(out, { recursive: true });
+require('../src/main.js');
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+const fx = (n) => path.join(__dirname, 'fixtures', n);
+let failed = 0;
+const check = (name, ok, info = '') => { console.log(ok ? 'OK   ' : 'FAIL ', name, info); if (!ok) failed++; };
+app.whenReady().then(async () => {
+  await wait(1500);
+  const wc = BrowserWindow.getAllWindows()[0].webContents;
+  const js = (c) => wc.executeJavaScript(`(async () => { ${c} })()`);
+  await js(`await App.openPaths([${JSON.stringify(fx('equations.docx'))}]);`);
+  await wait(800);
+  const n = await js(`return App.active().editor.page.querySelectorAll('.os-math math').length`);
+  check('equations shown', n === 5, n);
+  const tex = await js(`return OSMath.mathmlToLatex(App.active().editor.page.querySelector('.os-math math'))`);
+  check('equation -> LaTeX', /\\frac\{-b\\pm \\sqrt\{b\^2-4ac\}\}\{2a\}/.test(tex), tex);
+  await js(`const ed = App.active().editor; const last = ed.page.lastElementChild; const r = document.createRange(); r.selectNodeContents(last); r.collapse(false); getSelection().removeAllRanges(); getSelection().addRange(r); ed.saveSel(); document.execCommand('insertHTML', false, ed.equationHtml('\\\\int_0^1 x^2\\\\,dx = \\\\frac{1}{3}', false));`);
+  const saved = path.join(out, 'equations-saved.docx');
+  const r = await js(`return await window.api.saveFile({ kind: 'doc', data: App.active().editor.getData(), path: ${JSON.stringify(saved)} })`);
+  check('save', r.ok, r.error || '');
+  const JSZip = require('jszip');
+  const xml = await (await JSZip.loadAsync(fs.readFileSync(saved))).file('word/document.xml').async('string');
+  check('OMML written', (xml.match(/<m:oMath>/g) || []).length === 6 && /xmlns:m=/.test(xml) && !/OSMATH/.test(xml), (xml.match(/<m:oMath>/g) || []).length);
+  await js(`await App.openPaths([${JSON.stringify(saved)}]);`);
+  await wait(800);
+  check('reopened equations', (await js(`return App.active().editor.page.querySelectorAll('.os-math math').length`)) === 6);
+  await js(`await App.openPaths([${JSON.stringify(fx('word-features.docx'))}]);`);
+  await wait(1500);
+  const f = JSON.parse(await js(`const p = App.active().editor.page; return JSON.stringify({ png: [...p.querySelectorAll('img')].filter(i => /^data:image\\/png/.test(i.src)).length, fn: p.querySelectorAll('sup.os-fn').length, tb: p.querySelectorAll('.os-textbox').length, rowspan: p.querySelectorAll('td[rowspan="2"]').length, sym: p.textContent.includes('α'), pages: App.active().editor.pageCount })`));
+  check('WMF/EMF -> PNG', f.png === 2, f.png);
+  check('footnote', f.fn === 1);
+  check('text box', f.tb === 1);
+  check('merged cells', f.rowspan === 1);
+  check('symbol font', f.sym);
+  check('page counter', f.pages >= 1 && /Страница 1 из/.test(await js(`return App.active().editor.pageEl.textContent`)));
+  console.log(failed ? `FAILED: ${failed}` : 'NO ERRORS');
+  app.exit(failed ? 1 : 0);
+});

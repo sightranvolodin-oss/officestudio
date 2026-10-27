@@ -1,7 +1,8 @@
 // High-fidelity DOCX -> HTML reader (paragraph styles, alignment, run formatting,
 // lists, tables, images, hyperlinks, page breaks). Falls back to mammoth on error.
 const JSZip = require('jszip');
-const { DOMParser } = require('@xmldom/xmldom');
+const { DOMParser, XMLSerializer } = require('@xmldom/xmldom');
+const OSMath = require('../renderer/math.js');
 
 const W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
 const R = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
@@ -23,7 +24,25 @@ const HIGHLIGHT = {
   darkBlue: '#000080', darkCyan: '#008080', darkGreen: '#008000', darkMagenta: '#800080', darkRed: '#800000',
   darkYellow: '#808000', darkGray: '#808080', lightGray: '#c0c0c0', black: '#000000', white: '#ffffff',
 };
-const MIME = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', bmp: 'image/bmp', svg: 'image/svg+xml', webp: 'image/webp', tif: 'image/tiff', tiff: 'image/tiff' };
+const MIME = { wmf: 'image/x-wmf', emf: 'image/x-emf', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', bmp: 'image/bmp', svg: 'image/svg+xml', webp: 'image/webp', tif: 'image/tiff', tiff: 'image/tiff' };
+
+/** w:sym characters from Symbol / Wingdings fonts (code points F0xx) -> Unicode */
+const SYMBOL = { 0x61: 'α', 0x62: 'β', 0x63: 'χ', 0x64: 'δ', 0x65: 'ε', 0x66: 'φ', 0x67: 'γ', 0x68: 'η', 0x69: 'ι', 0x6A: 'ϕ', 0x6B: 'κ', 0x6C: 'λ', 0x6D: 'μ', 0x6E: 'ν', 0x6F: 'ο', 0x70: 'π', 0x71: 'θ', 0x72: 'ρ', 0x73: 'σ', 0x74: 'τ', 0x75: 'υ', 0x76: 'ϖ', 0x77: 'ω', 0x78: 'ξ', 0x79: 'ψ', 0x7A: 'ζ', 0x41: 'Α', 0x42: 'Β', 0x43: 'Χ', 0x44: 'Δ', 0x45: 'Ε', 0x46: 'Φ', 0x47: 'Γ', 0x48: 'Η', 0x49: 'Ι', 0x4B: 'Κ', 0x4C: 'Λ', 0x4D: 'Μ', 0x4E: 'Ν', 0x4F: 'Ο', 0x50: 'Π', 0x51: 'Θ', 0x52: 'Ρ', 0x53: 'Σ', 0x54: 'Τ', 0x55: 'Υ', 0x57: 'Ω', 0x58: 'Ξ', 0x59: 'Ψ', 0x5A: 'Ζ', 0xA3: '≤', 0xB3: '≥', 0xB9: '≠', 0xBB: '≈', 0xB1: '±', 0xB4: '×', 0xB8: '÷', 0xD7: '·', 0xB7: '•', 0xA5: '∞', 0xB0: '°', 0xAE: '→', 0xAC: '←', 0xAD: '↑', 0xAF: '↓', 0xDE: '⇒', 0xDB: '⇔', 0xD6: '√', 0xE5: '∑', 0xF2: '∫', 0xB6: '∂', 0xD1: '∇', 0xCE: '∈', 0xC7: '∩', 0xC8: '∪', 0xA2: '′', 0xB2: '″', 0xBE: '—', 0xBC: '…', 0x2D: '−', 0x2B: '+', 0x3D: '=', 0x28: '(', 0x29: ')' };
+function symbolChar(code, font) {
+  const c = code >= 0xF000 ? code - 0xF000 : code;
+  if (/symbol/.test(font) && SYMBOL[c]) return SYMBOL[c];
+  if (/wingdings/.test(font)) return { 0xFC: '✓', 0xFB: '✗', 0xA8: '☐', 0xFE: '☑', 0x9F: '•', 0x6C: '●', 0x6E: '■', 0xD8: '➢', 0xE0: '→' }[c] || '•';
+  return String.fromCodePoint(code >= 0xF000 && !font ? c : code);
+}
+
+/** Word equation -> editable span: MathML to show it, the original OMML to save it back unchanged */
+function mathHtml(node) {
+  let mathml = '';
+  try { mathml = OSMath.ommlToMathml(node); } catch { mathml = `<math><mtext>${esc(node.textContent)}</mtext></math>`; }
+  const omml = new XMLSerializer().serializeToString(node);
+  const display = node.localName === 'oMathPara';
+  return `<span class="os-math${display ? ' os-math-block' : ''}" contenteditable="false" data-omml="${esc(omml)}">${mathml}</span>`;
+}
 
 async function docxToHtmlNative(buffer) {
   const zip = await JSZip.loadAsync(buffer);
@@ -79,6 +98,19 @@ async function docxToHtmlNative(buffer) {
       numFmt[wattr(n, 'numId')] = abs[wattr(kid(n, 'abstractNumId'), 'val')] || {};
   }
 
+  // footnotes and endnotes: shown as numbered notes at the end of the document
+  const notes = { footnote: {}, endnote: {} };
+  for (const kind of ['footnote', 'endnote']) {
+    const x = await zip.file(`word/${kind}s.xml`)?.async('string');
+    if (!x) continue;
+    for (const n of Array.from(parse(x).getElementsByTagNameNS(W, kind))) {
+      const id = wattr(n, 'id');
+      if (wattr(n, 'type')) continue; // separators
+      notes[kind][id] = n;
+    }
+  }
+  const usedNotes = [];
+
   const imageCache = {};
   async function imageSrc(rId) {
     if (imageCache[rId]) return imageCache[rId];
@@ -90,7 +122,7 @@ async function docxToHtmlNative(buffer) {
     const f = zip.file(p);
     if (!f) return null;
     const ext = p.split('.').pop().toLowerCase();
-    if (ext === 'emf' || ext === 'wmf') return null; // not renderable in Chromium
+    // WMF/EMF (MathType and old Equation objects, Visio…) are drawn to PNG by the editor
     const src = `data:${MIME[ext] || 'image/png'};base64,${await f.async('base64')}`;
     imageCache[rId] = src;
     return src;
@@ -122,12 +154,17 @@ async function docxToHtmlNative(buffer) {
     const shd = kid(rPr, 'shd');
     const fill = shd && wattr(shd, 'fill');
     if (!hl && fill && /^[0-9a-f]{6}$/i.test(fill) && fill.toLowerCase() !== 'ffffff') css.push(`background-color:#${fill}`);
+    if (on(kid(rPr, 'caps'))) css.push('text-transform:uppercase');
+    else if (on(kid(rPr, 'smallCaps'))) css.push('font-variant:small-caps');
+    const spc = wattr(kid(rPr, 'spacing'), 'val');
+    if (spc && +spc) css.push(`letter-spacing:${(+spc / 20).toFixed(1)}pt`);
     if (css.length) { open = `<span style="${css.join(';')}">` + open; close = close + '</span>'; }
-    return { open, close };
+    return { open, close, hidden: on(kid(rPr, 'vanish')) };
   }
 
   async function renderRun(r) {
-    const { open, close } = runStyle(kid(r, 'rPr'));
+    const { open, close, hidden } = runStyle(kid(r, 'rPr'));
+    if (hidden) return '';
     let inner = '';
     for (const c of kids(r)) {
       switch (c.localName) {
@@ -141,6 +178,8 @@ async function docxToHtmlNative(buffer) {
           const docPr = c.getElementsByTagNameNS('http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing', 'docPr')[0];
           const descr = docPr && docPr.getAttribute('descr');
           if (descr && descr.startsWith('OSINK:')) { inner += `<span class="os-ink" data-ink="${esc(descr.slice(6))}"></span>`; break; }
+          const tbx = c.getElementsByTagNameNS(W, 'txbxContent')[0];
+          if (tbx) { inner += await textBox(tbx); break; }
           const blip = c.getElementsByTagNameNS(A, 'blip')[0];
           const rId = blip && (blip.getAttributeNS(R, 'embed') || blip.getAttribute('r:embed'));
           const ext = c.getElementsByTagNameNS('http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing', 'extent')[0];
@@ -152,17 +191,47 @@ async function docxToHtmlNative(buffer) {
           }
           break;
         }
-        case 'pict': {
+        case 'pict': case 'object': {
+          // text boxes (VML)
+          const tb = c.getElementsByTagNameNS(W, 'txbxContent')[0];
+          if (tb) { inner += await textBox(tb); break; }
+          // embedded objects (MathType / Equation 3.0, Visio, Excel…) and VML pictures: their preview image
           const im = c.getElementsByTagName('v:imagedata')[0];
           const rId = im && (im.getAttributeNS(R, 'id') || im.getAttribute('r:id'));
           const src = rId && (await imageSrc(rId));
-          if (src) inner += `<img src="${src}">`;
+          const shape = c.getElementsByTagName('v:shape')[0];
+          const style = (shape && shape.getAttribute('style')) || '';
+          const dim = (k) => { const m = new RegExp(k + ':\\s*([\\d.]+)(pt|in|px|cm|mm)?').exec(style); if (!m) return null; const v = +m[1]; return Math.round(v * ({ pt: 96 / 72, in: 96, px: 1, cm: 96 / 2.54, mm: 96 / 25.4 }[m[2] || 'px'])); };
+          const w = dim('width'), h = dim('height');
+          if (src) inner += `<img src="${src}"${w ? ` width="${w}"` : ''}${h ? ` height="${h}"` : ''}${c.localName === 'object' ? ' class="os-ole"' : ''}>`;
           break;
         }
+        case 'sym': {
+          const ch = parseInt(wattr(c, 'char') || '0', 16);
+          const font = (wattr(c, 'font') || '').toLowerCase();
+          inner += esc(symbolChar(ch, font));
+          break;
+        }
+        case 'footnoteReference': case 'endnoteReference': {
+          const kind = c.localName === 'footnoteReference' ? 'footnote' : 'endnote';
+          const id = wattr(c, 'id');
+          if (notes[kind][id]) { usedNotes.push({ kind, id }); inner += `<sup class="os-fn">${usedNotes.length}</sup>`; }
+          break;
+        }
+        case 'noBreakHyphen': inner += '‑'; break;
+        case 'softHyphen': inner += '&shy;'; break;
+        case 'cr': inner += '<br>'; break;
         default: break;
       }
     }
     return inner ? open + inner + close : '';
+  }
+
+  /** a text box / shape with text: its paragraphs as an inline framed block */
+  async function textBox(tb) {
+    const parts = [];
+    for (const p of kids(tb, 'p')) { const t = await renderInline(p); parts.push(t || '&nbsp;'); }
+    return `<span class="os-textbox">${parts.join('<br>')}</span>`;
   }
 
   async function renderInline(p) {
@@ -175,7 +244,9 @@ async function docxToHtmlNative(buffer) {
         let inner = '';
         for (const r of kids(c, 'r')) inner += await renderRun(r);
         html += `<a href="${esc(href)}">${inner}</a>`;
-      } else if (c.localName === 'ins' || c.localName === 'smartTag' || c.localName === 'sdt' || c.localName === 'fldSimple') {
+      } else if (c.localName === 'oMath' || c.localName === 'oMathPara') {
+        html += mathHtml(c);
+      } else if (c.localName === 'ins' || c.localName === 'moveTo' || c.localName === 'smartTag' || c.localName === 'sdt' || c.localName === 'fldSimple' || c.localName === 'customXml' || c.localName === 'dir' || c.localName === 'bdo') {
         const content = c.localName === 'sdt' ? kid(c, 'sdtContent') : c;
         html += await renderInline(content);
       }
@@ -202,6 +273,15 @@ async function docxToHtmlNative(buffer) {
     const hanging = ind && wattr(ind, 'hanging');
     if (hanging && +hanging > 0 && !numPr) css.push(`text-indent:-${Math.round(+hanging / 15)}px`);
     else if (first && +first > 0) css.push(`text-indent:${Math.round(+first / 15)}px`);
+    // borders and shading of the paragraph
+    const pBdr = kid(pPr, 'pBdr');
+    if (pBdr) for (const [k, side] of [['top', 'top'], ['bottom', 'bottom'], ['left', 'left'], ['right', 'right']]) {
+      const b = kid(pBdr, k);
+      const v = b && wattr(b, 'val');
+      if (v && v !== 'none' && v !== 'nil') { const col = wattr(b, 'color'); css.push(`border-${side}:${Math.max(1, Math.round((+wattr(b, 'sz') || 4) / 6))}px ${/double/.test(v) ? 'double' : /dash|dot/.test(v) ? 'dashed' : 'solid'} ${col && /^[0-9a-f]{6}$/i.test(col) ? '#' + col : '#000'}`); }
+    }
+    const pshd = wattr(kid(pPr, 'shd'), 'fill');
+    if (pshd && /^[0-9a-f]{6}$/i.test(pshd) && pshd.toLowerCase() !== 'ffffff') css.push(`background-color:#${pshd}`);
     const spacing = kid(pPr, 'spacing');
     if (spacing) {
       const before = wattr(spacing, 'before'), after = wattr(spacing, 'after');
@@ -223,23 +303,46 @@ async function docxToHtmlNative(buffer) {
       }
     }
     let tag = 'p';
+    const pbb = kid(pPr, 'pageBreakBefore');
+    const breakBefore = pbb && wattr(pbb, 'val') !== '0' && wattr(pbb, 'val') !== 'false' ? '<div class="page-break"></div>' : '';
     if (st.level) tag = 'h' + Math.min(st.level, 6);
     else if (st.quote) tag = 'blockquote';
-    return { kind: 'p', html: `<${tag}${style}>${inner}</${tag}>` };
+    return { kind: 'p', html: `${breakBefore}<${tag}${style}>${inner}</${tag}>` };
   }
 
   async function renderTable(tbl) {
-    let html = '<table>';
-    for (const tr of kids(tbl, 'tr')) {
-      html += '<tr>';
-      for (const tc of kids(tr, 'tc')) {
+    // grid positions of every cell, so vertically merged cells get a rowspan
+    const rows = kids(tbl, 'tr').map((tr) => {
+      let col = 0;
+      return kids(tr, 'tc').map((tc) => {
         const tcPr = kid(tc, 'tcPr');
-        const span = wattr(kid(tcPr, 'gridSpan'), 'val');
+        const span = +(wattr(kid(tcPr, 'gridSpan'), 'val') || 1);
         const vm = kid(tcPr, 'vMerge');
-        if (vm && wattr(vm, 'val') !== 'restart') { continue; }
-        const shd = wattr(kid(tcPr, 'shd'), 'fill');
-        const st = shd && /^[0-9a-f]{6}$/i.test(shd) ? ` style="background-color:#${shd}"` : '';
-        html += `<td${span ? ` colspan="${span}"` : ''}${st}>${await renderBlocks(tc)}</td>`;
+        const cell = { tc, tcPr, col, span, cont: !!(vm && wattr(vm, 'val') !== 'restart'), rowspan: 1 };
+        col += span;
+        return cell;
+      });
+    });
+    rows.forEach((row, ri) => row.forEach((c) => {
+      if (c.cont) return;
+      for (let k = ri + 1; k < rows.length; k++) {
+        const below = rows[k].find((x) => x.col === c.col);
+        if (below && below.cont) c.rowspan++; else break;
+      }
+    }));
+    let html = '<table>';
+    for (const row of rows) {
+      html += '<tr>';
+      for (const c of row) {
+        if (c.cont) continue;
+        const shd = wattr(kid(c.tcPr, 'shd'), 'fill');
+        const w = kid(c.tcPr, 'tcW');
+        const css = [];
+        if (shd && /^[0-9a-f]{6}$/i.test(shd)) css.push(`background-color:#${shd}`);
+        if (w && wattr(w, 'type') === 'dxa' && +wattr(w, 'w') > 0) css.push(`width:${Math.round(+wattr(w, 'w') / 15)}px`);
+        const va = wattr(kid(c.tcPr, 'vAlign'), 'val');
+        if (va === 'center' || va === 'bottom') css.push(`vertical-align:${va === 'center' ? 'middle' : 'bottom'}`);
+        html += `<td${c.span > 1 ? ` colspan="${c.span}"` : ''}${c.rowspan > 1 ? ` rowspan="${c.rowspan}"` : ''}${css.length ? ` style="${css.join(';')}"` : ''}>${await renderBlocks(c.tc)}</td>`;
       }
       html += '</tr>';
     }
@@ -278,6 +381,17 @@ async function docxToHtmlNative(buffer) {
 
   const body = doc.getElementsByTagNameNS(W, 'body')[0];
   let html = await renderBlocks(body);
+  // notes at the end, numbered in the order of their references
+  if (usedNotes.length) {
+    let notesHtml = '<hr><p style="font-size:9pt"><b>Сноски</b></p>';
+    for (let i = 0; i < usedNotes.length; i++) {
+      const n = notes[usedNotes[i].kind][usedNotes[i].id];
+      let t = '';
+      for (const p of kids(n, 'p')) t += (t ? ' ' : '') + (await renderInline(p));
+      notesHtml += `<p style="font-size:9pt;margin:0 0 2pt"><sup>${i + 1}</sup> ${t.replace(/<sup class="os-fn">\d+<\/sup>/g, '')}</p>`;
+    }
+    html += notesHtml;
+  }
   html = html.replace(/<p([^>]*)><\/p><div class="page-break"><\/div>/g, '<div class="page-break"></div>')
              .replace(/<div class="page-break"><\/div><p([^>]*)><\/p>/g, '<div class="page-break"></div>');
   return html || '<p><br></p>';

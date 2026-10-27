@@ -215,6 +215,59 @@
       // pagination after layout and whenever content or images change
       this.page.addEventListener('load', () => this.schedulePaginate(), true);
       requestAnimationFrame(() => this.paginate());
+      this.convertMetafiles();
+    }
+
+    /** WMF/EMF pictures (MathType and old Equation objects, drawings from Visio/AutoCAD…) -> PNG */
+    async convertMetafiles() {
+      const imgs = Array.from(this.page.querySelectorAll('img')).filter((i) => /^data:image\/x-(wmf|emf)/.test(i.getAttribute('src') || ''));
+      if (!imgs.length) return;
+      let changed = 0;
+      for (const img of imgs) {
+        try {
+          const src = img.getAttribute('src');
+          const emf = /x-emf/.test(src);
+          const bin = atob(src.slice(src.indexOf(',') + 1));
+          const buf = new ArrayBuffer(bin.length);
+          const u8 = new Uint8Array(buf);
+          for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+          const dv = new DataView(buf);
+          let natW = 0, natH = 0, xExt = 1000, yExt = 1000;
+          if (!emf && dv.getUint32(0, true) === 0x9ac6cdd7) {
+            const l = dv.getInt16(6, true), t = dv.getInt16(8, true), r = dv.getInt16(10, true), b = dv.getInt16(12, true), upi = dv.getUint16(14, true) || 1440;
+            xExt = Math.abs(r - l) || 1000; yExt = Math.abs(b - t) || 1000;
+            natW = (xExt / upi) * 96; natH = (yExt / upi) * 96;
+          } else if (emf) {
+            const l = dv.getInt32(8, true), t = dv.getInt32(12, true), r = dv.getInt32(16, true), b = dv.getInt32(20, true);
+            const fl = dv.getInt32(24, true), ft = dv.getInt32(28, true), fr = dv.getInt32(32, true), fb = dv.getInt32(36, true);
+            xExt = Math.abs(r - l) + 1; yExt = Math.abs(b - t) + 1;
+            natW = (Math.abs(fr - fl) / 100) * (96 / 25.4); natH = (Math.abs(fb - ft) / 100) * (96 / 25.4);
+          }
+          let W = +img.getAttribute('width') || Math.round(natW) || 200;
+          let H = +img.getAttribute('height') || (natW ? Math.round((W * natH) / natW) : 100);
+          const svg = emf
+            ? new EMFJS.Renderer(buf).render({ width: W + 'px', height: H + 'px', wExt: xExt, hExt: yExt, xExt, yExt, mapMode: 8 })
+            : new WMFJS.Renderer(buf).render({ width: W + 'px', height: H + 'px', xExt, yExt, mapMode: 8 });
+          svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+          const url = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(new XMLSerializer().serializeToString(svg));
+          const im = new Image();
+          await new Promise((res, rej) => { im.onload = res; im.onerror = rej; im.src = url; });
+          const k = 2;
+          const cv = document.createElement('canvas');
+          cv.width = Math.max(1, Math.round(W * k)); cv.height = Math.max(1, Math.round(H * k));
+          const ctx = cv.getContext('2d');
+          ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, cv.width, cv.height);
+          ctx.drawImage(im, 0, 0, cv.width, cv.height);
+          img.setAttribute('src', cv.toDataURL('image/png'));
+          img.setAttribute('width', W); img.setAttribute('height', H);
+          changed++;
+        } catch (e) {
+          console.warn('metafile', e);
+          img.setAttribute('alt', 'Рисунок WMF/EMF не удалось показать');
+          img.classList.add('os-bad-img');
+        }
+      }
+      if (changed) this.schedulePaginate();
     }
 
     // ------------------------------------------------------------ pages
@@ -475,6 +528,7 @@
           tableBtn,
           btn({ icon: 'image', title: 'Вставить изображение', onClick: () => this.insertImage() }),
           btn({ icon: 'link', title: 'Ссылка', onClick: () => this.insertLink() }),
+          btn({ icon: 'sigma', label: 'Формула', title: 'Вставить формулу (Alt+=). Двойной щелчок по формуле — изменить', onClick: () => this.equationDialog() }),
           btn({ icon: 'hr', title: 'Горизонтальная линия', onClick: cmd('insertHorizontalRule') }),
           btn({ icon: 'pageBreak', title: 'Разрыв страницы', onClick: () => this.exec('insertHTML', '<div class="page-break" contenteditable="false"></div><p><br></p>') }),
         ),
@@ -498,7 +552,9 @@
       const range = el('input', { type: 'range', min: '50', max: '200', step: '10', value: '100', title: 'Масштаб' });
       range.addEventListener('input', () => this.setZoom(+range.value / 100));
       this.zoomRange = range;
-      return el('div', { class: 'statusbar' }, [el('span', { text: 'Документ Word' }), this.countEl, el('span', { class: 'spacer' }), range, this.zoomLbl]);
+      this.pageEl = el('button', { class: 'st-btn st-page', title: 'Перейти к странице…' });
+      this.pageEl.addEventListener('click', () => this.gotoPageDialog());
+      return el('div', { class: 'statusbar' }, [this.pageEl, this.countEl, el('span', { class: 'spacer' }), range, this.zoomLbl]);
     }
 
     setZoom(z) {
@@ -759,15 +815,15 @@
       doc.body.querySelectorAll('*').forEach((n) => {
         for (const a of Array.from(n.attributes)) {
           const name = a.name.toLowerCase();
-          if (name.startsWith('on') || name === 'contenteditable' && !n.classList.contains('page-break')) n.removeAttribute(a.name);
-          else if (name === 'class' && !/page-break|os-ink/.test(a.value)) n.removeAttribute(a.name);
+          if (name.startsWith('on') || name === 'contenteditable' && !n.classList.contains('page-break') && !n.classList.contains('os-math')) n.removeAttribute(a.name);
+          else if (name === 'class' && !/page-break|os-ink|os-math|os-textbox|os-fn|os-ole/.test(a.value)) n.removeAttribute(a.name);
           else if (name === 'style') {
-            const keep = a.value.split(';').map((s) => s.trim()).filter((s) => /^(color|background-color|font-size|font-family|font-weight|font-style|text-decoration|text-align|margin-left|margin-right|margin-top|margin-bottom|line-height|text-indent|width|height)\s*:/i.test(s) && !/mso-/i.test(s));
+            const keep = a.value.split(';').map((s) => s.trim()).filter((s) => /^(color|background-color|font-size|font-family|font-weight|font-style|font-variant|text-decoration|text-transform|letter-spacing|text-align|vertical-align|margin-left|margin-right|margin-top|margin-bottom|line-height|text-indent|width|height|border(-top|-bottom|-left|-right)?|padding)\s*:/i.test(s) && !/mso-/i.test(s));
             keep.length ? n.setAttribute('style', keep.join(';')) : n.removeAttribute('style');
           } else if (name === 'href' && /^\s*javascript:/i.test(a.value)) n.removeAttribute(a.name);
         }
       });
-      doc.querySelectorAll('.page-break').forEach((p) => p.setAttribute('contenteditable', 'false'));
+      doc.querySelectorAll('.page-break, .os-math').forEach((p) => p.setAttribute('contenteditable', 'false'));
       return doc.body.innerHTML;
     }
 
@@ -807,6 +863,7 @@
         fr.readAsDataURL(f);
       });
       p.addEventListener('keydown', (e) => {
+        if (e.altKey && !e.ctrlKey && (e.key === '=' || e.code === 'Equal')) { e.preventDefault(); this.equationDialog(); return; }
         if (e.key === 'Tab') {
           e.preventDefault();
           const li = this.cellAt(getSelection().anchorNode) ? null : getSelection().anchorNode?.parentElement?.closest('li');
@@ -831,6 +888,8 @@
         else if (this.selImg) this.selectImage(null);
       });
       p.addEventListener('dblclick', (e) => {
+        const m = e.target.closest && e.target.closest('.os-math');
+        if (m) { e.preventDefault(); this.equationDialog(m); return; }
         if (e.target.tagName === 'A') window.open(e.target.href);
       });
       p.addEventListener('contextmenu', (e) => {
@@ -868,8 +927,10 @@
         this.saveSel();
         this.updateState();
         this.ruler.update();
+        this.updatePageLabel();
       };
       document.addEventListener('selectionchange', this.onSelChange);
+      this.scroll.addEventListener('scroll', () => { if (!this.pgLblRaf) this.pgLblRaf = requestAnimationFrame(() => { this.pgLblRaf = null; this.updatePageLabel(); }); });
       this.scroll.addEventListener('scroll', () => this.selImg && this.showImgHandle());
       this.scroll.addEventListener('wheel', (e) => { if (e.ctrlKey) { e.preventDefault(); this.setZoom(this.zoom + (e.deltaY < 0 ? 0.1 : -0.1)); } }, { passive: false });
     }
@@ -905,7 +966,106 @@
       this.countTimer = setTimeout(() => this.updateCounts(), 300);
       if (this.selImg) this.showImgHandle();
     }
+    // ------------------------------------------------------------ equations
+    /** insert a new equation, or edit `span` (an existing .os-math) */
+    async equationDialog(span) {
+      this.saveSel();
+      const where = this.savedRange ? this.savedRange.cloneRange() : null;
+      const mathEl = span && span.querySelector('math');
+      let tex = '';
+      if (mathEl) { try { tex = OSMath.mathmlToLatex(mathEl); } catch { tex = ''; } }
+      const isBlock = span ? span.classList.contains('os-math-block') : false;
+      const ta = el('textarea', { class: 'eq-input', spellcheck: 'false', placeholder: 'Например: x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}' });
+      ta.value = tex;
+      const preview = el('div', { class: 'eq-preview' });
+      const block = el('input', { type: 'checkbox' });
+      block.checked = isBlock;
+      const render = () => { try { preview.innerHTML = OSMath.latexToMathml(ta.value || ' ', true); } catch (e) { preview.textContent = 'Ошибка: ' + e.message; } };
+      const put = (snippet) => {
+        const a = ta.selectionStart, b = ta.selectionEnd;
+        const sel = ta.value.slice(a, b);
+        let ins = snippet.replace('#', sel);
+        const caret = ins.indexOf('|');
+        ins = ins.replace('|', '');
+        ta.value = ta.value.slice(0, a) + ins + ta.value.slice(b);
+        const pos = a + (caret >= 0 ? caret : ins.length);
+        ta.focus(); ta.setSelectionRange(pos, pos);
+        render();
+      };
+      const pal = [
+        ['a/b', 'Дробь', '\\frac{#|}{}'], ['xⁿ', 'Степень', '^{|}'], ['xᵢ', 'Индекс', '_{|}'], ['√', 'Корень', '\\sqrt{#|}'], ['ⁿ√', 'Корень n-й степени', '\\sqrt[|]{#}'],
+        ['∑', 'Сумма', '\\sum_{i=1}^{n} |'], ['∫', 'Интеграл', '\\int_{a}^{b} | \\,dx'], ['lim', 'Предел', '\\lim_{x \\to |} '], ['( )', 'Скобки', '\\left( #| \\right)'],
+        ['[ ]', 'Матрица 2×2', '\\begin{pmatrix} | & \\\\ & \\end{pmatrix}'], ['{', 'Система', '\\begin{cases} | & \\\\ & \\end{cases}'], ['x⃗', 'Вектор', '\\vec{#|}'], ['x̄', 'Черта', '\\overline{#|}'],
+        ['sin', 'Синус', '\\sin |'], ['log', 'Логарифм', '\\log_{|} '], ['α', 'альфа', '\\alpha '], ['β', 'бета', '\\beta '], ['γ', 'гамма', '\\gamma '], ['Δ', 'Дельта', '\\Delta '], ['π', 'пи', '\\pi '], ['σ', 'сигма', '\\sigma '], ['ω', 'омега', '\\omega '], ['φ', 'фи', '\\varphi '],
+        ['≤', 'Меньше или равно', '\\le '], ['≥', 'Больше или равно', '\\ge '], ['≠', 'Не равно', '\\ne '], ['≈', 'Приближённо', '\\approx '], ['±', 'Плюс-минус', '\\pm '], ['×', 'Умножить', '\\times '], ['·', 'Точка', '\\cdot '], ['∞', 'Бесконечность', '\\infty '], ['→', 'Стрелка', '\\to '], ['°', 'Градус', '^{\\circ}'],
+      ].map(([t, title, snip]) => { const b = el('button', { type: 'button', class: 'eq-btn', title, text: t }); b.addEventListener('click', () => put(snip)); return b; });
+      ta.addEventListener('input', render);
+      render();
+      const body = el('div', { class: 'eq-dialog' }, [
+        el('div', { class: 'eq-pal' }, pal),
+        ta,
+        el('div', { class: 'eq-hint', html: 'Запись как в LaTeX: <b>^</b> — степень, <b>_</b> — индекс, <b>{ }</b> — группа, <b>\\frac{a}{b}</b>, <b>\\sqrt{x}</b>, <b>\\alpha</b>… Можно писать и обычные символы: ≤ ° π.' }),
+        preview,
+        el('label', { class: 'terms-agree' }, [block, el('span', { text: 'Отдельной строкой, по центру' })]),
+      ]);
+      setTimeout(() => ta.focus(), 30);
+      const r = await modal({ title: span ? 'Изменить формулу' : 'Вставить формулу', body, okText: span ? 'Готово' : 'Вставить' });
+      if (!r || !ta.value.trim()) return;
+      const html = this.equationHtml(ta.value, block.checked);
+      this.page.focus();
+      if (span) {
+        const range = document.createRange();
+        range.selectNode(span);
+        const sl = getSelection(); sl.removeAllRanges(); sl.addRange(range);
+        document.execCommand('insertHTML', false, html);
+      } else {
+        const sl = getSelection();
+        if (where && this.page.contains(where.startContainer)) { sl.removeAllRanges(); sl.addRange(where); }
+        else this.restoreSel();
+        document.execCommand('insertHTML', false, html + (block.checked ? '' : '\u200b'));
+      }
+      this.changed();
+      this.schedulePaginate();
+    }
+    equationHtml(tex, block) {
+      const mathml = OSMath.latexToMathml(tex, block);
+      const doc = new DOMParser().parseFromString(mathml, 'application/xml');
+      const omml = OSMath.mathmlToOmml(doc.documentElement);
+      return `<span class="os-math${block ? ' os-math-block' : ''}" contenteditable="false" data-omml="${esc(omml)}">${mathml}</span>`;
+    }
+
+    /** page under the caret, or the page most visible on screen */
+    currentPage() {
+      const g = this.geom, z = this.zoom, pitch = g.H + SHEET_GAP;
+      const top = this.page.getBoundingClientRect().top;
+      let y = null;
+      const s = getSelection();
+      if (s.rangeCount && this.page.contains(s.anchorNode) && document.activeElement === this.page) {
+        const r = s.getRangeAt(0).getClientRects()[0] || (s.anchorNode.nodeType === 1 ? s.anchorNode : s.anchorNode.parentElement).getBoundingClientRect();
+        const sr = this.scroll.getBoundingClientRect();
+        if (r && r.top >= sr.top - 4 && r.top <= sr.bottom) y = (r.top - top) / z;
+      }
+      if (y == null) { const sr = this.scroll.getBoundingClientRect(); y = (sr.top + sr.height / 3 - top) / z; }
+      return Math.max(1, Math.min(this.pageCount || 1, Math.floor(y / pitch) + 1));
+    }
+    updatePageLabel() {
+      if (!this.pageEl) return;
+      const t = `Страница ${this.currentPage()} из ${this.pageCount || 1}`;
+      if (this.pageEl.textContent !== t) this.pageEl.textContent = t;
+    }
+    gotoPage(n) {
+      const g = this.geom, z = this.zoom, pitch = g.H + SHEET_GAP;
+      n = Math.max(1, Math.min(this.pageCount || 1, n));
+      const pr = this.page.getBoundingClientRect(), sr = this.scroll.getBoundingClientRect();
+      this.scroll.scrollTop += pr.top - sr.top + (n - 1) * pitch * z - 12;
+      this.updatePageLabel();
+    }
+    async gotoPageDialog() {
+      const r = await modal({ title: 'Перейти к странице', fields: [{ name: 'n', label: `Номер страницы (1–${this.pageCount || 1})`, type: 'number', value: this.currentPage(), min: 1, max: this.pageCount || 1 }], okText: 'Перейти' });
+      if (r && isFinite(r.n)) this.gotoPage(Math.round(r.n));
+    }
     updateCounts() {
+      this.updatePageLabel();
       const text = this.page.innerText || '';
       const words = (text.match(/[\p{L}\p{N}]+/gu) || []).length;
       this.countEl.textContent = `Слов: ${words.toLocaleString('ru')}  ·  Знаков: ${text.replace(/\s/g, '').length.toLocaleString('ru')}`;

@@ -159,9 +159,47 @@ function sortPPr(inner) {
   return items.map((x) => x.xml).join('');
 }
 
+// ---------------------------------------------------------------- equations
+// Equations are kept as OMML in data-omml; html-to-docx gets a text marker in their place and the
+// OMML is put back into document.xml afterwards (applyMath).
+const unescAttr = (v) => v.replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&#39;/g, "'").replace(/&amp;/g, '&');
+function extractMath(html, list) {
+  return html.replace(/<span\b[^>]*\bclass="[^"]*\bos-math\b[^"]*"[^>]*>[\s\S]*?<\/math>\s*<\/span>/gi, (m) => {
+    const om = /\bdata-omml="([^"]*)"/i.exec(m);
+    if (!om) return '';
+    list.push(unescAttr(om[1]));
+    return `[[OSMATH:${list.length - 1}]]`;
+  });
+}
+function applyMath(xml, list) {
+  if (!list.length) return xml;
+  if (!/xmlns:m=/.test(xml.slice(0, 2000))) xml = xml.replace(/<w:document\b/, '<w:document xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math"');
+  list.forEach((omml, i) => {
+    const mk = `[[OSMATH:${i}]]`;
+    const at = xml.indexOf(mk);
+    if (at < 0) return;
+    // the run holding the marker
+    let rs = at;
+    for (;;) { rs = xml.lastIndexOf('<w:r', rs - 1); if (rs < 0) break; const ch = xml[rs + 4]; if (ch === '>' || ch === ' ') break; }
+    const re = xml.indexOf('</w:r>', at);
+    if (rs < 0 || re < 0) { xml = xml.replace(mk, ''); return; }
+    const run = xml.slice(rs, re + 6);
+    const rPr = (/<w:rPr\/>|<w:rPr>[\s\S]*?<\/w:rPr>/.exec(run) || [''])[0];
+    const tm = /<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>/.exec(run);
+    const text = tm ? tm[1] : '';
+    const k = text.indexOf(mk);
+    const before = k >= 0 ? text.slice(0, k) : '', after = k >= 0 ? text.slice(k + mk.length) : '';
+    const mkRun = (t) => (t ? `<w:r>${rPr}<w:t xml:space="preserve">${t}</w:t></w:r>` : '');
+    // namespaces are declared on the document element
+    const clean = omml.replace(/\s+xmlns:(m|w)="[^"]*"/g, '');
+    xml = xml.slice(0, rs) + mkRun(before) + clean + mkRun(after) + xml.slice(re + 6);
+  });
+  return xml;
+}
+
 // html-to-docx works best with inline styles; normalise a few editor quirks first
-function prepareHtml(html) {
-  return addParaMarkers(html)
+function prepareHtml(html, mathList = []) {
+  return addParaMarkers(extractMath(html, mathList))
     // execCommand('fontSize') produces <font size=N>; map to point sizes
     .replace(/<font([^>]*)>/gi, (m, attrs) => {
       const styles = [];
@@ -210,10 +248,10 @@ async function fixPageFields(buffer) {
   return changed ? zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' }) : buffer;
 }
 
-async function fixParagraphs(buffer) {
+async function fixParagraphs(buffer, mathList = []) {
   const zip = await JSZip.loadAsync(buffer);
   const xml = await zip.file('word/document.xml').async('string');
-  const fixed = applyParaMarkers(xml);
+  const fixed = applyMath(applyParaMarkers(xml), mathList);
   if (fixed === xml) return buffer;
   zip.file('word/document.xml', fixed);
   return zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' });
@@ -276,7 +314,8 @@ async function htmlToDocx(html, meta = {}, inks = [], doc = null) {
   const pg = { w: 210, h: 297, mt: 25.4, mb: 25.4, ml: 23.8, mr: 23.8, ...(d.page || {}) };
   const header = d.header || '';
   const footer = d.footer || '';
-  const prepared = prepareHtml(html);
+  const mathList = [];
+  const prepared = prepareHtml(html, mathList);
   const buffer = await HTMLtoDOCX(prepared, header ? hfHtml(header, d.headerAlign || 'center') : null, {
     title: meta.title || 'Документ',
     creator: 'OfficeStudio',
@@ -294,7 +333,7 @@ async function htmlToDocx(html, meta = {}, inks = [], doc = null) {
     footerType: 'default',
   }, footer ? hfHtml(footer, d.footerAlign || 'center') : null);
   let out = Buffer.isBuffer(buffer) ? buffer : Buffer.from(await buffer.arrayBuffer());
-  out = await fixParagraphs(out);
+  out = await fixParagraphs(out, mathList);
   if (header || footer) out = await fixPageFields(out);
   return inks && inks.length ? embedInks(out, inks) : out;
 }
