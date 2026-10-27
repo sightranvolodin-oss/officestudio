@@ -206,6 +206,7 @@
       case 'save': return save(active, false);
       case 'save-as': return save(active, true);
       case 'export': return exportActive();
+      case 'print': if (ed && ed.printPreview) return ed.printPreview(); if (ed && ed.printDialog) return ed.printDialog(); if (ed) toast('Для таблиц и презентаций используйте экспорт в PDF / файл'); return;
       case 'close-tab': return closeTab(active);
       case 'undo': if (ed && ed.undo) ed.undo(); else document.execCommand('undo'); return;
       case 'redo': if (ed && ed.redo) ed.redo(); else document.execCommand('redo'); return;
@@ -219,6 +220,7 @@
         return;
       }
       case 'check-updates': return Updates.check(true);
+      case 'terms': return showTerms(false);
     }
   }
   async function closeAllDirty() {
@@ -283,6 +285,26 @@
     };
   })();
 
+  /** terms of use: must be accepted once (first start), can be re-read from the Help menu */
+  async function showTerms(mustAccept) {
+    const t = await window.api.termsGet();
+    if (mustAccept && t.accepted) return;
+    const body = el('div', { class: 'terms-text', text: t.text });
+    if (!mustAccept) { await modal({ title: 'Условия использования', body, okText: 'Закрыть', cancelText: null }); return; }
+    const chk = el('input', { type: 'checkbox' });
+    const lbl = el('label', { class: 'terms-agree' }, [chk, el('span', { text: 'Я прочитал(а) условия и принимаю их' })]);
+    for (;;) {
+      const r = await modal({ title: 'OfficeStudio — условия использования', body: el('div', {}, [body, lbl]), okText: 'Принимаю', cancelText: 'Не принимаю — выйти' });
+      if (r && chk.checked) { await window.api.termsAccept(); return; }
+      if (!r) {
+        const q = await window.api.confirm({ message: 'Без согласия с условиями пользоваться программой нельзя.', detail: 'Закрыть OfficeStudio?', buttons: ['Закрыть программу', 'Вернуться к условиям'] });
+        if (q === 0) { await window.api.termsDecline(); return; }
+        continue;
+      }
+      toast('Отметьте галочку «Я принимаю», чтобы продолжить', 'error');
+    }
+  }
+
   function showShortcuts() {
     const rows = [
       ['Создать документ / презентацию / таблицу / чертёж', 'Ctrl+N / Ctrl+Shift+N / Ctrl+Alt+T / Ctrl+Alt+N'], ['Открыть / Сохранить / Сохранить как', 'Ctrl+O / Ctrl+S / Ctrl+Shift+S'],
@@ -328,6 +350,7 @@
     ]);
   });
   window.api.onMenu(onMenu);
+  if (!window.OS_SKIP_TERMS) showTerms(true);
   window.api.onOpenPath((p) => openPaths([p]));
   window.api.takePending().then((p) => p.length && openPaths(p));
   window.App = { openPaths, newFile, save, tabs: () => tabs, active: () => active, updates: () => Updates };

@@ -408,6 +408,7 @@
         group(this.fmtSel, sb('outdent', 'Уменьшить разрядность', () => this.changeDecimals(-1)), sb('indent', 'Увеличить разрядность', () => this.changeDecimals(1))),
         group(sumBtn, insMenu, sortMenu, this.freezeBtn),
         group(sb('eraser', 'Очистить форматы', () => this.clearFormats()), sb('search', 'Найти (Ctrl+F)', () => this.find())),
+        group(sb('pdf', 'Сохранить в PDF (Ctrl+E)', () => this.exportMenu(), 'PDF'), sb('printer', 'Предпросмотр и печать (Ctrl+P)', () => this.printPreview(), 'Печать')),
       ]));
       // formula bar
       this.nameBox = el('input', { class: 'sh-name', type: 'text', title: 'Адрес ячейки — введите, например, B12, и нажмите Enter' });
@@ -1588,7 +1589,106 @@
       });
       return { model: { sheets, active: this.active } };
     }
-    exportMenu() { toast('Сохраните таблицу (Ctrl+S) как .xlsx или .csv'); }
+    // ------------------------------------------------------------ print / PDF
+    /** one sheet (or a range of it) as an HTML table that looks like the grid */
+    sheetHtml(m, range, grid) {
+      const used = this.usedSize(m);
+      const r1 = range ? range.r1 : 0, c1 = range ? range.c1 : 0;
+      const r2 = range ? Math.min(range.r2, used.rows - 1) : used.rows - 1, c2 = range ? Math.min(range.c2, used.cols - 1) : used.cols - 1;
+      if (r2 < r1 || c2 < c1) return { html: '', width: 0 };
+      const merges = new Map(), covered = new Set();
+      for (const g of m.merges) {
+        if (g[0] > r2 || g[2] < r1 || g[1] > c2 || g[3] < c1) continue;
+        merges.set(key(g[0], g[1]), g);
+        for (let r = g[0]; r <= g[2]; r++) for (let c = g[1]; c <= g[3]; c++) if (r !== g[0] || c !== g[1]) covered.add(key(r, c));
+      }
+      let width = 0;
+      let html = '<table class="os-sheet"><colgroup>';
+      for (let c = c1; c <= c2; c++) { const w = this.colW(c, m); width += w; html += `<col style="width:${w}px">`; }
+      html += '</colgroup>';
+      const bd = (b) => (b ? `${/thick/.test(b.s) ? 2.5 : /medium/.test(b.s) ? 1.8 : 1}px ${/dash/.test(b.s) ? 'dashed' : /dot/.test(b.s) ? 'dotted' : 'solid'} ${b.c || '#000'}` : '');
+      for (let r = r1; r <= r2; r++) {
+        html += `<tr style="height:${this.rowH(r, m)}px">`;
+        for (let c = c1; c <= c2; c++) {
+          const k = key(r, c);
+          if (covered.has(k)) continue;
+          const g = merges.get(k);
+          const st = m.styles.get(k) || {};
+          const v = this.value(r, c, m);
+          const isNum = typeof v === 'number';
+          const css = [];
+          if (st.b) css.push('font-weight:bold');
+          if (st.i) css.push('font-style:italic');
+          if (st.u || st.st) css.push(`text-decoration:${[st.u && 'underline', st.st && 'line-through'].filter(Boolean).join(' ')}`);
+          if (st.size) css.push(`font-size:${st.size}pt`);
+          if (st.font) css.push(`font-family:'${st.font}',Calibri,Carlito,Arial,sans-serif`);
+          if (st.color) css.push(`color:${st.color}`);
+          if (st.bg) css.push(`background:${st.bg}`);
+          css.push(`text-align:${st.h || (isNum ? 'right' : typeof v === 'boolean' || (v && typeof v === 'object') ? 'center' : 'left')}`);
+          css.push(`vertical-align:${st.v === 'top' ? 'top' : st.v === 'middle' ? 'middle' : 'bottom'}`);
+          if (st.wrap) css.push('white-space:pre-wrap'); else css.push('white-space:nowrap');
+          if (st.bd) for (const [side, name] of [['t', 'top'], ['r', 'right'], ['b', 'bottom'], ['l', 'left']]) if (st.bd[side]) css.push(`border-${name}:${bd(st.bd[side])}`);
+          const span = g ? ` rowspan="${Math.min(g[2], r2) - r + 1}" colspan="${Math.min(g[3], c2) - c + 1}"` : '';
+          html += `<td${span} style="${css.join(';')}">${UI.esc(this.display(r, c, m))}</td>`;
+        }
+        html += '</tr>';
+      }
+      html += '</table>';
+      void grid;
+      return { html, width };
+    }
+    async printOptions(title) {
+      const s = this.selRange();
+      const hasSel = s.r2 > s.r1 || s.c2 > s.c1;
+      return modal({
+        title,
+        fields: [
+          { name: 'what', label: 'Что печатать', type: 'select', options: [['sheet', 'Текущий лист'], ['all', 'Все листы'], ...(hasSel ? [['sel', `Выделенный диапазон (${addr(s.r1, s.c1)}:${addr(s.r2, s.c2)})`]] : [])], value: 'sheet' },
+          { name: 'orient', label: 'Ориентация', type: 'select', options: [['port', 'Книжная (A4)'], ['land', 'Альбомная (A4)']], value: this.usedSize().cols > 8 ? 'land' : 'port' },
+          { name: 'fit', label: 'Масштаб', type: 'select', options: [['width', 'Вписать по ширине страницы'], ['100', 'Без масштабирования (100%)']], value: 'width' },
+          { name: 'grid', label: 'Сетка', type: 'select', options: [['1', 'Печатать линии сетки'], ['0', 'Без сетки (только границы)']], value: '1' },
+        ],
+        okText: 'Продолжить',
+      });
+    }
+    async printPayload(title) {
+      this.commitEdit();
+      const o = await this.printOptions(title);
+      if (!o) return null;
+      const land = o.orient === 'land';
+      const pw = land ? 297 : 210, ph = land ? 210 : 297, margin = 12;
+      const usablePx = ((pw - 2 * margin) / 25.4) * 96;
+      const sheets = o.what === 'all' ? this.metas : [this.meta];
+      const parts = [];
+      for (const m of sheets) {
+        const { html, width } = this.sheetHtml(m, o.what === 'sel' ? this.selRange() : null, o.grid === '1');
+        if (!html) continue;
+        const k = o.fit === 'width' && width > usablePx ? usablePx / width : 1;
+        const name = this.hf.getSheetName(m.id);
+        parts.push(`<section class="os-sp">${sheets.length > 1 ? `<div class="os-sn">${UI.esc(name)}</div>` : ''}<div style="zoom:${k}">${html}</div></section>`);
+      }
+      if (!parts.length) { toast('На листе нет данных для печати'); return null; }
+      const css = `body { font: 11pt Calibri, Carlito, 'Segoe UI', Arial, sans-serif; color: #000; }
+        .os-sp { break-after: page; } .os-sp:last-child { break-after: auto; }
+        .os-sn { font-weight: 600; font-size: 12pt; margin: 0 0 6px; }
+        table.os-sheet { border-collapse: collapse; table-layout: fixed; }
+        table.os-sheet td { padding: 1px 3px; overflow: hidden; text-overflow: clip; ${o.grid === '1' ? 'border: 1px solid #d0d4da;' : ''} }
+        tr { break-inside: avoid; }`;
+      return { html: parts.join(''), css, widthMm: pw, heightMm: ph, marginMm: margin, suggestedName: (window.App && App.active() && App.active().name) || 'Таблица' };
+    }
+    async exportMenu() {
+      const p = await this.printPayload('Сохранить в PDF');
+      if (!p) return;
+      const r = await window.api.printHtml({ ...p, action: 'pdf' });
+      if (r.ok) toast('PDF сохранён: ' + r.path.split(/[\\/]/).pop());
+      else if (!r.canceled) toast('Ошибка экспорта: ' + r.error, 'error');
+    }
+    async printPreview() {
+      const p = await this.printPayload('Печать');
+      if (!p) return;
+      const r = await window.api.printHtml({ ...p, action: 'preview' });
+      if (!r.ok && !r.canceled) toast('Ошибка печати: ' + r.error, 'error');
+    }
     onActivate() { requestAnimationFrame(() => { this.layout(); this.scroll.focus({ preventScroll: true }); }); }
     destroy() { this.ro.disconnect(); document.removeEventListener('copy', this.onCopy); document.removeEventListener('cut', this.onCut); document.removeEventListener('paste', this.onPaste); try { this.hf.destroy(); } catch {} }
   }

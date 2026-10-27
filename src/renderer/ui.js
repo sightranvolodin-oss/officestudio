@@ -57,6 +57,7 @@
     eyeOff: 'M10.7 5.1A10 10 0 0 1 12 5c6.5 0 10 7 10 7a17 17 0 0 1-2.2 3.2M6.6 6.6C3.9 8.4 2 12 2 12s3.5 7 10 7c1.9 0 3.6-.6 5-1.5M2 2l20 20M9.9 9.9a3 3 0 0 0 4.2 4.2',
     fit: 'M3 8V3h5M21 8V3h-5M3 16v5h5M21 16v5h-5M8 12h8M12 8v8',
     download: 'M12 3v12M7 10l5 5 5-5M5 21h14',
+    printer: 'M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v7H6z',
     save: 'M5 3h11l5 5v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2M7 3v6h8M7 21v-7h10v7',
     folder: 'M3 6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z',
     fileText: 'M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9zM14 3v6h6M8 13h8M8 17h8M8 9h2',
@@ -274,5 +275,15 @@
     return '#' + [m[1], m[2], m[3]].map((v) => (+v).toString(16).padStart(2, '0')).join('');
   }
 
-  window.UI = { icon, el, btn, group, select, popupAt, popupBelow, closePopup, menu, colorPicker, colorButton, gridPicker, modal, toast, esc, rgbToHex, PALETTE };
+  /** all CSS rules of the app (for printing editor content in a separate window) */
+  function appCss(filter) {
+    const out = [];
+    for (const sh of Array.from(document.styleSheets)) {
+      let rules;
+      try { rules = sh.cssRules; } catch { continue; }
+      for (const r of Array.from(rules || [])) if (!filter || filter(r)) out.push(r.cssText);
+    }
+    return out.join('\n');
+  }
+  window.UI = { appCss, icon, el, btn, group, select, popupAt, popupBelow, closePopup, menu, colorPicker, colorButton, gridPicker, modal, toast, esc, rgbToHex, PALETTE };
 })();

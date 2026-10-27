@@ -203,7 +203,7 @@ async function fixPageFields(buffer) {
     if (!/\[\[OSPAGES?\]\]/.test(xml)) continue;
     // html-to-docx writes headers with a default namespace (<t>, <r>), the body with w: prefixes
     const w = /<w:t[ >]/.test(xml) ? 'w:' : '';
-    xml = xml.replace(/\[\[OSPAGE(S?)\]\]/g, (m, s) => `</${w}t></${w}r><${w}fldSimple ${w}instr=" ${s ? 'NUMPAGES' : 'PAGE'} "><${w}r><${w}t>1</${w}t></${w}r></${w}fldSimple><${w}r><${w}t xml:space="preserve">`);
+    xml = xml.replace(/\[\[OSPAGE(S?)\]\]/g, (m, s) => `</${w}t></${w}r><${w}fldSimple${w ? '' : ' xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"'} w:instr=" ${s ? 'NUMPAGES' : 'PAGE'} "><${w}r><${w}t>1</${w}t></${w}r></${w}fldSimple><${w}r><${w}t xml:space="preserve">`);
     zip.file(name, xml);
     changed = true;
   }
@@ -269,7 +269,7 @@ async function embedInks(buffer, inks) {
 }
 
 const tw = (mm) => Math.round((mm / 25.4) * 1440);
-const hfHtml = (text) => (text || '').split('\n').map((l) => `<p>${xmlEsc(l).replace(/\{PAGE\}/g, '[[OSPAGE]]').replace(/\{NUMPAGES\}/g, '[[OSPAGES]]') || '&nbsp;'}</p>`).join('');
+const hfHtml = (text, align) => (text || '').split('\n').map((l) => `<p${align && align !== 'left' ? ` style="text-align:${align}"` : ''}>${xmlEsc(l).replace(/\{PAGE\}/g, '[[OSPAGE]]').replace(/\{NUMPAGES\}/g, '[[OSPAGES]]') || '&nbsp;'}</p>`).join('');
 
 async function htmlToDocx(html, meta = {}, inks = [], doc = null) {
   const d = doc || {};
@@ -277,7 +277,7 @@ async function htmlToDocx(html, meta = {}, inks = [], doc = null) {
   const header = d.header || '';
   const footer = d.footer || '';
   const prepared = prepareHtml(html);
-  const buffer = await HTMLtoDOCX(prepared, header ? hfHtml(header) : null, {
+  const buffer = await HTMLtoDOCX(prepared, header ? hfHtml(header, d.headerAlign || 'center') : null, {
     title: meta.title || 'Документ',
     creator: 'OfficeStudio',
     font: 'Calibri',
@@ -292,7 +292,7 @@ async function htmlToDocx(html, meta = {}, inks = [], doc = null) {
     headerType: 'default',
     footer: !!footer,
     footerType: 'default',
-  }, footer ? hfHtml(footer) : null);
+  }, footer ? hfHtml(footer, d.footerAlign || 'center') : null);
   let out = Buffer.isBuffer(buffer) ? buffer : Buffer.from(await buffer.arrayBuffer());
   out = await fixParagraphs(out);
   if (header || footer) out = await fixPageFields(out);

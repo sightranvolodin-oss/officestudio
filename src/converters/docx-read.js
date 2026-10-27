@@ -307,6 +307,9 @@ async function docxMeta(buffer) {
     if (!f) return '';
     const x = parse(await f.async('string'));
     const paras = [];
+    const firstP = x.getElementsByTagNameNS(W, 'p')[0];
+    const jc = firstP && wattr(kid(kid(firstP, 'pPr'), 'jc'), 'val');
+    partText.align = { center: 'center', right: 'right', end: 'right', left: 'left', start: 'left' }[jc] || 'left';
     for (const p of Array.from(x.getElementsByTagNameNS(W, 'p'))) {
       let t = '';
       let inField = null;
@@ -332,7 +335,7 @@ async function docxMeta(buffer) {
       const refs = kids(sect, kind + 'Reference');
       const ref = refs.find((r) => wattr(r, 'type') === 'default') || refs[0];
       const id = ref && (ref.getAttributeNS(R, 'id') || ref.getAttribute('r:id'));
-      if (id && rels[id]) meta[kind] = await partText(rels[id]);
+      if (id && rels[id]) { meta[kind] = await partText(rels[id]); meta[kind + 'Align'] = partText.align; }
     }
   }
   return meta;

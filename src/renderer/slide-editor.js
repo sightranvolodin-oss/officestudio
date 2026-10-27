@@ -361,7 +361,7 @@
         group(fillBtn, lineBtn, lineW),
         group(tb('front', 'На передний план', () => this.order(1)), tb('back', 'На задний план', () => this.order(-1)), tb('dup', 'Дублировать (Ctrl+D)', () => this.duplicate()), tb('trash', 'Удалить (Del)', () => this.deleteSel())),
         group(bgBtn, sizeBtn),
-        group(btn({ icon: 'play', label: 'Показ', title: 'Начать показ (F5)', onClick: () => this.present(0) })),
+        group(btn({ icon: 'play', label: 'Показ', title: 'Начать показ (F5)', onClick: () => this.present(0) }), btn({ icon: 'pdf', label: 'PDF', title: 'Сохранить слайды в PDF (Ctrl+E)', onClick: () => this.exportMenu() }), btn({ icon: 'printer', label: 'Печать', title: 'Предпросмотр и печать (Ctrl+P)', onClick: () => this.printPreview() })),
       ]);
     }
 
@@ -1152,7 +1152,28 @@
       m.slides.forEach((s) => s.elements.forEach((e) => { delete e.defaults; delete e.ph; }));
       return { model: m };
     }
-    exportMenu() { toast('Для PDF: откройте сохранённый .pptx и экспортируйте, либо используйте показ слайдов. Сохранение — Ctrl+S.'); }
+    /** every slide as one page of the slide's own size */
+    printPayload() {
+      this.commitEdit();
+      const wMm = this.model.width * 25.4, hMm = this.model.height * 25.4;
+      const html = this.model.slides.map((sl) => `<div class="os-pg">${renderSlide(this.model, sl).outerHTML}</div>`).join('');
+      const css = UI.appCss((r) => /\.slide|\.el\b|\.txt|\.tbl|ink-svg|\.shape/.test(r.selectorText || '') || r.type === CSSRule.FONT_FACE_RULE) +
+        `\n.os-pg { width: ${wMm}mm; height: ${hMm}mm; overflow: hidden; font: 13px/1.4 'Segoe UI', system-ui, Roboto, Arial, sans-serif; color: #1d2330; page-break-after: always; break-after: page; position: relative; }
+        .os-pg:last-child { page-break-after: auto; break-after: auto; }
+        .os-pg > .slide { position: absolute; left: 0; top: 0; }`;
+      return { html, css, widthMm: wMm, heightMm: hMm, suggestedName: (window.App && App.active() && App.active().name) || 'Презентация' };
+    }
+    async exportMenu() {
+      toast('Готовлю PDF…');
+      const r = await window.api.printHtml({ ...this.printPayload(), action: 'pdf' });
+      if (r.ok) toast('PDF сохранён: ' + r.path.split(/[\\/]/).pop());
+      else if (!r.canceled) toast('Ошибка экспорта: ' + r.error, 'error');
+    }
+    async printPreview() {
+      toast('Готовлю предпросмотр…');
+      const r = await window.api.printHtml({ ...this.printPayload(), action: 'preview' });
+      if (!r.ok && !r.canceled) toast('Ошибка печати: ' + r.error, 'error');
+    }
     onActivate() { requestAnimationFrame(() => { this.layoutStage(); this.stageWrap.focus({ preventScroll: true }); }); }
     destroy() { this.ro.disconnect(); }
   }

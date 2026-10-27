@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld('api', {
   saveFile: (args) => ipcRenderer.invoke('save-file', args),
   exportPdf: (args) => ipcRenderer.invoke('export-pdf', args),
   exportPng: (args) => ipcRenderer.invoke('export-png', args),
+  printHtml: (args) => ipcRenderer.invoke('print-html', args),
   printRaster: (args) => ipcRenderer.invoke('print-raster', args),
   pickImage: () => ipcRenderer.invoke('pick-image'),
   getRecent: () => ipcRenderer.invoke('get-recent'),
@@ -22,6 +23,9 @@ contextBridge.exposeInMainWorld('api', {
   updateDownload: () => ipcRenderer.invoke('update-download'),
   updateInstall: () => ipcRenderer.invoke('update-install'),
   onUpdateState: (cb) => ipcRenderer.on('update-state', (e, s) => cb(s)),
+  termsGet: () => ipcRenderer.invoke('terms-get'),
+  termsAccept: () => ipcRenderer.invoke('terms-accept'),
+  termsDecline: () => ipcRenderer.invoke('terms-decline'),
   onMenu: (cb) => ipcRenderer.on('menu', (e, cmd) => cb(cmd)),
   onOpenPath: (cb) => ipcRenderer.on('open-path', (e, p) => cb(p)),
 });

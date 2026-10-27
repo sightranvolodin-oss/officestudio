@@ -250,7 +250,19 @@
      * Word-like pages: a block that would cross the bottom margin is pushed to the next page with a
      * temporary margin (never saved). Table rows are pushed with cell padding.
      */
+    /** lays the pages out until the result is stable (a change of geometry can need a second pass) */
     paginate() {
+      if (!this.page.isConnected) return;
+      const sig = () => Array.from(this.page.querySelectorAll('.pg-push')).map((b) => Math.round(parseFloat(b.style.getPropertyValue('--pg')) || 0)).join(',') + '|' + this.pageCount;
+      let last = null;
+      for (let i = 0; i < 4; i++) {
+        this.paginateOnce();
+        const now = sig();
+        if (now === last) break;
+        last = now;
+      }
+    }
+    paginateOnce() {
       if (!this.page.isConnected) return;
       const g = this.geom, z = this.zoom;
       const contentH = g.H - g.mt - g.mb, pitch = g.H + SHEET_GAP;
@@ -260,11 +272,32 @@
       const t0 = top0();
       let forceNext = false;
       const pages = []; // page index of every heading (for the table of contents)
+      // a pushed table row keeps its border where it is and moves its content down by cell padding
+      const topOf = (b) => b.getBoundingClientRect().top / z - t0 + (b.tagName === 'TR' ? parseFloat(b.style.getPropertyValue('--pg')) || 0 : 0);
+      const pushTo = (b, target) => {
+        if (b.tagName === 'TR') {
+          const base = b.getBoundingClientRect().top / z - t0;
+          b.classList.add('pg-push');
+          b.style.setProperty('--pg', Math.max(0, target - base) + 'px');
+          return;
+        }
+        // margins collapse with the previous block, so measure and correct
+        let y = topOf(b);
+        let push = target - y;
+        for (let k = 0; k < 3 && Math.abs(push) > 0.5; k++) {
+          const cur = parseFloat(b.style.getPropertyValue('--pg')) || 0;
+          b.classList.add('pg-push');
+          b.style.setProperty('--pg', Math.max(0, cur + push) + 'px');
+          y = topOf(b);
+          push = target - y;
+        }
+      };
+      let prev = null;
       for (const b of this.flowBlocks()) {
         if (b.classList.contains('page-break')) { forceNext = true; continue; }
         const r = b.getBoundingClientRect();
-        let y = r.top / z - t0;
-        const h = r.height / z;
+        const y = topOf(b);
+        const h = r.height / z - (y - r.top / z + t0);
         const pi = Math.floor(y / pitch);
         const local = y - pi * pitch;
         let target = null;
@@ -273,17 +306,21 @@
         else if (local + h > contentH + 0.5 && h <= contentH && local > 0.5) target = (pi + 1) * pitch;
         forceNext = false;
         if (target != null) {
-          // margins collapse with the previous block, so measure and correct once
-          let push = target - y;
-          for (let k = 0; k < 2 && Math.abs(push) > 0.5; k++) {
-            const cur = parseFloat(b.style.getPropertyValue('--pg')) || 0;
-            b.classList.add('pg-push');
-            b.style.setProperty('--pg', Math.max(0, cur + push) + 'px');
-            y = b.getBoundingClientRect().top / z - t0;
-            push = target - y;
+          // a heading never stays alone at the bottom of a page: it moves together with its text
+          if (prev && /^H[1-6]$/.test(prev.tagName)) {
+            const py = topOf(prev);
+            const ppi = Math.floor(py / pitch);
+            if (ppi === pi && py - ppi * pitch > 0.5) {
+              pushTo(prev, target);
+              if (pages.length && pages[pages.length - 1][0] === prev) pages[pages.length - 1][1] = pi + 2;
+            }
           }
+          const ny = topOf(b);
+          const npi = Math.floor(ny / pitch), nlocal = ny - npi * pitch;
+          if (nlocal > 0.5 && !(nlocal + h <= contentH + 0.5 && npi > pi)) pushTo(b, Math.max(target, (npi + (nlocal >= contentH - 0.5 || nlocal + h > contentH + 0.5 ? 1 : 0)) * pitch));
         }
-        if (/^H[1-3]$/.test(b.tagName)) pages.push([b, Math.floor((b.getBoundingClientRect().top / z - t0) / pitch) + 1]);
+        if (/^H[1-3]$/.test(b.tagName)) pages.push([b, Math.floor(topOf(b) / pitch) + 1]);
+        prev = b;
       }
       const bottom = this.page.scrollHeight;
       const n = Math.max(1, Math.ceil((bottom - g.mb + 1) / pitch));
@@ -291,6 +328,7 @@
       this.page.style.minHeight = n * pitch - SHEET_GAP + 'px';
       this.renderSheets(n);
       this.headingPages = pages;
+      // the table of contents can change height when its page numbers change: lay out once more
       this.refreshToc();
       if (this.countEl) this.updateCounts();
     }
@@ -382,11 +420,13 @@
     }
     refreshToc() {
       const tocs = this.page.querySelectorAll('.toc');
-      if (!tocs.length) return;
+      if (!tocs.length) return false;
       const items = (this.headingPages || []).filter(([h]) => !h.closest('.toc'));
       const html = '<div class="toc-title">Оглавление</div>' + (items.length ? items.map(([h, pg], i) => `<div class="toc-e toc-l${h.tagName[1]}" data-i="${i}"><span class="t">${UI.esc(h.textContent.trim() || '—')}</span><span class="d"></span><span class="n">${pg}</span></div>`).join('') : '<div class="toc-empty">Нет заголовков. Сделайте строки «Заголовком 1–3» (список стилей слева на панели).</div>');
-      tocs.forEach((t) => { if (t.innerHTML !== html) t.innerHTML = html; });
+      let changed = false;
+      tocs.forEach((t) => { if (t.innerHTML !== html) { t.innerHTML = html; changed = true; } });
       this.tocTargets = items.map(([h]) => h);
+      return changed;
     }
 
     focusStart() {
@@ -448,7 +488,7 @@
           btn({ icon: 'listOl', label: '№ стр.', title: 'Номера страниц и колонтитулы', onClick: (e, b) => this.pageNumbersMenu(b) }),
           btn({ icon: 'listUl', label: 'Оглавление', title: 'Вставить оглавление по заголовкам', onClick: () => this.insertToc() }),
         ),
-        group(btn({ icon: 'search', title: 'Найти и заменить (Ctrl+F)', onClick: () => this.find() }), btn({ icon: 'pdf', label: 'PDF', title: 'Экспорт в PDF (Ctrl+E)', onClick: () => this.exportMenu() }), btn({ icon: 'download', label: 'Печать', title: 'Предпросмотр и печать (Ctrl+P)', onClick: () => this.printPreview() })),
+        group(btn({ icon: 'search', title: 'Найти и заменить (Ctrl+F)', onClick: () => this.find() }), btn({ icon: 'pdf', label: 'PDF', title: 'Экспорт в PDF (Ctrl+E)', onClick: () => this.exportMenu() }), btn({ icon: 'printer', label: 'Печать', title: 'Предпросмотр и печать (Ctrl+P)', onClick: () => this.printPreview() })),
       ]);
     }
 
@@ -900,11 +940,14 @@
       });
       for (const c of [clone, inline]) {
         c.querySelectorAll('[data-osb]').forEach((n) => n.removeAttribute('data-osb'));
+        // on-screen page layout is never saved
+        c.querySelectorAll('.pg-push').forEach((n) => { n.classList.remove('pg-push'); n.style.removeProperty('--pg'); if (!n.getAttribute('style')) n.removeAttribute('style'); });
+        c.querySelectorAll('.toc').forEach((t) => { t.removeAttribute('contenteditable'); t.querySelectorAll('.toc-e').forEach((e) => { const tt = e.querySelector('.t'), nn = e.querySelector('.n'); e.outerHTML = `<p class="toc-p" style="margin:0 0 2pt ${(+(e.className.match(/toc-l(\d)/) || [0, 1])[1] - 1) * 18}px">${UI.esc(tt ? tt.textContent : '')} — ${nn ? nn.textContent : ''}</p>`; }); });
         this.clearMarks(c);
         c.querySelectorAll('img.sel').forEach((i) => i.classList.remove('sel'));
         c.querySelectorAll('[class=""]').forEach((n) => n.removeAttribute('class'));
       }
-      return { html: clone.innerHTML, inks, htmlInline: inline.innerHTML };
+      return { html: clone.innerHTML, inks, htmlInline: inline.innerHTML, doc: JSON.parse(JSON.stringify(this.meta)) };
     }
 
     // ------------------------------------------------------------ red pencil
@@ -1105,15 +1148,33 @@
         el2.style.lineHeight = r.line || '';
       }, blocks);
     }
+    /** the editor's own .doc-page rules, so PDF and print look exactly like the screen */
+    pageCss() {
+      const out = [];
+      for (const sh of Array.from(document.styleSheets)) {
+        let rules;
+        try { rules = sh.cssRules; } catch { continue; }
+        for (const r of Array.from(rules || [])) if (r.selectorText && /\.doc-page\b/.test(r.selectorText) && !/::selection|find-hit|img\.sel|pg-push/.test(r.selectorText)) out.push(r.cssText.replace(/\.doc-page\s*\{/, 'body {').replace(/\.doc-page /g, ''));
+      }
+      return out.join('\n');
+    }
+    printPayload() {
+      const d = this.getData();
+      return { html: d.htmlInline, css: this.pageCss(), doc: d.doc, suggestedName: this.tabName() };
+    }
     async exportMenu() {
-      const busy = toast('Готовлю PDF…');
-      const r = await window.api.exportPdf({ html: this.getData().htmlInline, suggestedName: this.tabName() });
+      toast('Готовлю PDF…');
+      const r = await window.api.exportPdf({ ...this.printPayload(), action: 'pdf' });
       if (r.ok) toast('PDF сохранён: ' + r.path.split(/[\\/]/).pop());
       else if (!r.canceled) toast('Ошибка экспорта: ' + r.error, 'error');
     }
+    async printPreview() {
+      toast('Готовлю предпросмотр…');
+      const r = await window.api.exportPdf({ ...this.printPayload(), action: 'preview' });
+      if (!r.ok && !r.canceled) toast('Ошибка печати: ' + r.error, 'error');
+    }
     tabName() { return (window.App && window.App.active() && window.App.active().name) || 'Документ'; }
-    onActivate() { setTimeout(() => this.page.focus(), 0); }
-    onActivate() { requestAnimationFrame(() => this.ruler.update()); }
+    onActivate() { requestAnimationFrame(() => { this.ruler.update(); this.paginate(); }); }
     destroy() { this.ruler.destroy(); document.removeEventListener('selectionchange', this.onSelChange); if (this.inkRO) this.inkRO.disconnect(); }
   }
 

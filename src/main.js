@@ -122,25 +122,100 @@ ipcMain.handle('save-file', async (e, { kind, data, path: current, saveAs, sugge
   }
 });
 
-ipcMain.handle('export-pdf', async (e, { html, suggestedName }) => {
-  const r = await dialog.showSaveDialog(win, { title: 'Экспорт в PDF', defaultPath: path.join(app.getPath('documents'), (suggestedName || 'Документ').replace(/\.[^.]+$/, '') + '.pdf'), filters: [{ name: 'PDF', extensions: ['pdf'] }] });
-  if (r.canceled || !r.filePath) return { ok: false, canceled: true };
+// Document -> PDF with the page size, margins, headers/footers and page numbers of the document.
+// action 'pdf' asks where to save; 'preview' opens the PDF in a window with a print button.
+ipcMain.handle('export-pdf', async (e, { html, css, doc, suggestedName, action = 'pdf' }) => {
+  const pg = { w: 210, h: 297, mt: 25.4, mb: 25.4, ml: 23.8, mr: 23.8, ...((doc && doc.page) || {}) };
+  let target = null;
+  if (action === 'pdf' && process.env.OS_TEST_PDF) target = process.env.OS_TEST_PDF; // automated tests
+  else if (action === 'pdf') {
+    const r = await dialog.showSaveDialog(win, { title: 'Экспорт в PDF', defaultPath: path.join(app.getPath('documents'), (suggestedName || 'Документ').replace(/\.[^.]+$/, '') + '.pdf'), filters: [{ name: 'PDF', extensions: ['pdf'] }] });
+    if (r.canceled || !r.filePath) return { ok: false, canceled: true };
+    target = r.filePath;
+  }
   const pw = new BrowserWindow({ show: false, webPreferences: { offscreen: true, javascript: false } });
   try {
     const page = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
-      body{font-family:Calibri,'Segoe UI',Arial,sans-serif;font-size:11pt;line-height:1.35;color:#000}
-      table{border-collapse:collapse;width:100%}td,th{border:1px solid #999;padding:4px 6px;vertical-align:top}
-      img{max-width:100%}.page-break{page-break-after:always;height:0;border:0}
-      h1{font-size:20pt}h2{font-size:16pt}h3{font-size:13pt}blockquote{border-left:3px solid #aaa;margin-left:0;padding-left:12px;color:#444}
+      @page { size: ${pg.w}mm ${pg.h}mm; margin: ${pg.mt}mm ${pg.mr}mm ${pg.mb}mm ${pg.ml}mm; }
+      html, body { margin: 0; padding: 0; }
+      body { font-family: Calibri, Carlito, 'Segoe UI', Arial, sans-serif; font-size: 11pt; line-height: 1.38; color: #000; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      ${css || 'table{border-collapse:collapse;width:100%}td,th{border:1px solid #999;padding:4px 6px;vertical-align:top}img{max-width:100%}'}
+      body { padding: 0 !important; width: auto !important; min-height: 0 !important; box-shadow: none !important; background: #fff !important; }
+      .page-break { page-break-after: always; break-after: page; height: 0; border: 0 !important; margin: 0 !important; }
+      .page-break::after { content: none !important; }
+      tr, img, p, li, h1, h2, h3, h4, blockquote { break-inside: avoid; }
+      h1, h2, h3, h4 { break-after: avoid; }
     </style></head><body>${html}</body></html>`;
     await pw.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(page));
-    const pdf = await pw.webContents.printToPDF({ pageSize: 'A4', printBackground: true, margins: { top: 0.8, bottom: 0.8, left: 0.8, right: 0.8 } });
-    fs.writeFileSync(r.filePath, pdf);
-    return { ok: true, path: r.filePath };
+    const esc = (t) => String(t || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const tpl = (text, align, pad) => {
+      if (!text) return '<span></span>';
+      const t = esc(text).replace(/\{PAGE\}/g, '<span class="pageNumber"></span>').replace(/\{NUMPAGES\}/g, '<span class="totalPages"></span>').replace(/\n/g, '<br>');
+      return `<div style="width:100%;box-sizing:border-box;padding:0 ${pg.mr}mm 0 ${pg.ml}mm;font:9pt Calibri,Carlito,Arial,sans-serif;color:#444;text-align:${align || 'center'};-webkit-print-color-adjust:exact;${pad}">${t}</div>`;
+    };
+    const hasHF = !!(doc && (doc.header || doc.footer));
+    const pdf = await pw.webContents.printToPDF({
+      preferCSSPageSize: true,
+      printBackground: true,
+      displayHeaderFooter: hasHF,
+      headerTemplate: tpl(doc && doc.header, doc && doc.headerAlign, `margin-top:${Math.max(3, pg.mt * 0.35)}mm`),
+      footerTemplate: tpl(doc && doc.footer, doc && doc.footerAlign, `margin-bottom:${Math.max(3, pg.mb * 0.35)}mm`),
+    });
+    if (action === 'preview') {
+      const tmp = path.join(require('os').tmpdir(), `OfficeStudio-${Date.now()}.pdf`);
+      fs.writeFileSync(tmp, pdf);
+      const pv = new BrowserWindow({ width: 1000, height: 900, title: `Предпросмотр — ${suggestedName || 'Документ'} (печать: Ctrl+P или значок принтера)`, parent: win, webPreferences: { plugins: true } });
+      pv.setMenuBarVisibility(false);
+      pv.on('closed', () => { try { fs.rmSync(tmp, { force: true }); } catch {} });
+      await pv.loadURL('file://' + tmp.replace(/\\/g, '/'));
+      return { ok: true };
+    }
+    fs.writeFileSync(target, pdf);
+    return { ok: true, path: target };
   } catch (err) {
     return { ok: false, error: err.message };
   } finally {
     pw.destroy();
+  }
+});
+
+// Any ready-made HTML (slides, spreadsheet pages) -> PDF of a given paper size, or a print preview window
+ipcMain.handle('print-html', async (e, { html, css, widthMm, heightMm, marginMm = 0, action = 'pdf', suggestedName }) => {
+  let target = null;
+  if (action === 'pdf' && process.env.OS_TEST_PDF) target = process.env.OS_TEST_PDF;
+  else if (action === 'pdf') {
+    const r = await dialog.showSaveDialog(win, { title: 'Экспорт в PDF', defaultPath: path.join(app.getPath('documents'), (suggestedName || 'Файл').replace(/\.[^.]+$/, '') + '.pdf'), filters: [{ name: 'PDF', extensions: ['pdf'] }] });
+    if (r.canceled || !r.filePath) return { ok: false, canceled: true };
+    target = r.filePath;
+  }
+  const tmpDir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'oshtml-'));
+  const pw = new BrowserWindow({ show: false, webPreferences: { offscreen: true, javascript: false } });
+  try {
+    const page = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+      @page { size: ${widthMm}mm ${heightMm}mm; margin: ${marginMm}mm; }
+      html, body { margin: 0; padding: 0; background: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      ${css || ''}
+    </style></head><body>${html}</body></html>`;
+    const f = path.join(tmpDir, 'page.html');
+    fs.writeFileSync(f, page);
+    await pw.loadFile(f);
+    const pdf = await pw.webContents.printToPDF({ preferCSSPageSize: true, printBackground: true });
+    if (action === 'preview') {
+      const tmp = path.join(require('os').tmpdir(), `OfficeStudio-${Date.now()}.pdf`);
+      fs.writeFileSync(tmp, pdf);
+      const pv = new BrowserWindow({ width: 1000, height: 900, title: `Предпросмотр — ${suggestedName || ''} (печать: Ctrl+P или значок принтера)`, parent: win, webPreferences: { plugins: true } });
+      pv.setMenuBarVisibility(false);
+      pv.on('closed', () => { try { fs.rmSync(tmp, { force: true }); } catch {} });
+      await pv.loadURL('file://' + tmp.replace(/\\/g, '/'));
+      return { ok: true };
+    }
+    fs.writeFileSync(target, pdf);
+    return { ok: true, path: target };
+  } catch (err) {
+    return { ok: false, error: err.message || String(err) };
+  } finally {
+    pw.destroy();
+    try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch {}
   }
 });
 
@@ -163,7 +238,7 @@ ipcMain.handle('print-raster', async (e, { png, widthMm, heightMm, action, sugge
       const ok = await new Promise((resolve) => pw.webContents.print({ silent: false, printBackground: true, margins: { marginType: 'none' }, pageSize: { width: Math.round(widthMm * 1000), height: Math.round(heightMm * 1000) } }, (success, why) => resolve(success || why)));
       return ok === true ? { ok: true } : { ok: false, canceled: ok === 'cancelled', error: String(ok) };
     }
-    const r = await dialog.showSaveDialog(win, { title: 'Сохранить PDF', defaultPath: path.join(app.getPath('documents'), (suggestedName || 'Чертёж').replace(/\.[^.]+$/, '') + '.pdf'), filters: [{ name: 'PDF', extensions: ['pdf'] }] });
+    const r = process.env.OS_TEST_PDF ? { filePath: process.env.OS_TEST_PDF } : await dialog.showSaveDialog(win, { title: 'Сохранить PDF', defaultPath: path.join(app.getPath('documents'), (suggestedName || 'Чертёж').replace(/\.[^.]+$/, '') + '.pdf'), filters: [{ name: 'PDF', extensions: ['pdf'] }] });
     if (r.canceled || !r.filePath) return { ok: false, canceled: true };
     const pdf = await pw.webContents.printToPDF({ preferCSSPageSize: true, printBackground: true, margins: { marginType: 'none' } });
     fs.writeFileSync(r.filePath, pdf);
@@ -192,6 +267,17 @@ ipcMain.handle('confirm', async (e, { message, detail, buttons }) => {
   const r = await dialog.showMessageBox(win, { type: 'question', message, detail, buttons, defaultId: 0, cancelId: buttons.length - 1, noLink: true });
   return r.response;
 });
+// ------------------------------------------------------------------ terms of use
+const TERMS_VERSION = 1;
+const termsFile = () => path.join(app.getPath('userData'), 'terms.json');
+ipcMain.handle('terms-get', () => {
+  let accepted = false;
+  try { accepted = JSON.parse(fs.readFileSync(termsFile(), 'utf8')).version >= TERMS_VERSION; } catch {}
+  return { text: fs.readFileSync(path.join(__dirname, 'disclaimer.txt'), 'utf8'), accepted };
+});
+ipcMain.handle('terms-accept', () => { try { fs.mkdirSync(app.getPath('userData'), { recursive: true }); fs.writeFileSync(termsFile(), JSON.stringify({ version: TERMS_VERSION, at: new Date().toISOString() })); } catch {} return true; });
+ipcMain.handle('terms-decline', () => { forceQuit = true; app.quit(); });
+
 ipcMain.handle('force-close', () => { forceQuit = true; win && win.close(); });
 ipcMain.handle('set-title', (e, t) => { if (win) win.setTitle(t); });
 ipcMain.handle('take-pending', () => pendingOpen.splice(0));
@@ -213,6 +299,7 @@ function menu() {
         { label: 'Сохранить', accelerator: 'CmdOrCtrl+S', click: send('save') },
         { label: 'Сохранить как…', accelerator: 'CmdOrCtrl+Shift+S', click: send('save-as') },
         { label: 'Экспорт…', accelerator: 'CmdOrCtrl+E', click: send('export') },
+        { label: 'Печать…', accelerator: 'CmdOrCtrl+P', click: send('print') },
         { type: 'separator' },
         { label: 'Закрыть вкладку', accelerator: 'CmdOrCtrl+W', click: send('close-tab') },
         { label: 'Выход', role: 'quit' },
@@ -247,7 +334,8 @@ function menu() {
       submenu: [
         { label: 'Проверить обновления…', click: send('check-updates') },
         { label: 'Горячие клавиши', click: send('shortcuts') },
-        { label: 'О программе', click: () => dialog.showMessageBox(win, { type: 'info', title: 'О программе', message: 'OfficeStudio ' + app.getVersion(), detail: 'Документы (DOCX), таблицы (XLSX, CSV), презентации (PPTX) и чертежи (DWG/DXF).\n\nЧтение DWG: LibreDWG (GPL-3.0). Формулы: HyperFormula (GPL-3.0).' }) },
+        { label: 'Условия использования', click: send('terms') },
+        { label: 'О программе', click: () => dialog.showMessageBox(win, { type: 'info', title: 'О программе', message: 'OfficeStudio ' + app.getVersion(), detail: 'Документы (DOCX), таблицы (XLSX, CSV), презентации (PPTX) и чертежи (DWG/DXF).\n\nПрограмма предоставляется «как есть», без каких-либо гарантий. Вы используете её на свой страх и риск; автор не несёт ответственности за любой ущерб, в том числе за потерю данных. Подробно — Справка → Условия использования.\n\nЛицензия GNU GPL v3. Чтение DWG: LibreDWG (GPL-3.0). Формулы: HyperFormula (GPL-3.0).' }) },
       ],
     },
   ];

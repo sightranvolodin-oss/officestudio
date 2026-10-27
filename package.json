@@ -1,6 +1,6 @@
 {
   "name": "officestudio",
-  "version": "1.7.0",
+  "version": "1.8.0",
   "description": "Редактор DOCX, PPTX и DWG/DXF",
   "main": "src/main.js",
   "scripts": {
@@ -64,7 +64,8 @@
       "createDesktopShortcut": true,
       "shortcutName": "OfficeStudio",
       "language": "1049",
-      "artifactName": "${productName}-Setup-${version}.${ext}"
+      "artifactName": "${productName}-Setup-${version}.${ext}",
+      "license": "build/license.txt"
     },
     "fileAssociations": [
       {

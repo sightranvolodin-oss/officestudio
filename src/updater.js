@@ -26,9 +26,9 @@ const cmpVer = (a, b) => {
 function setupUpdater(getWin, beforeInstall = () => {}) {
   const portableExe = process.env.PORTABLE_EXECUTABLE_FILE || null;
   const installed = app.isPackaged && process.platform === 'win32' && !portableExe;
-  let state = { state: 'idle', current: app.getVersion() };
+  let state = { state: 'idle', current: pkg.version };
   const set = (s) => {
-    state = { ...state, ...s, current: app.getVersion() };
+    state = { ...state, ...s, current: pkg.version };
     const w = getWin();
     if (w && !w.isDestroyed()) w.webContents.send('update-state', state);
   };
@@ -64,7 +64,7 @@ function setupUpdater(getWin, beforeInstall = () => {}) {
     const rel = await res.json();
     const version = String(rel.tag_name || rel.name || '').replace(/^v/, '');
     const asset = (rel.assets || []).find((a) => /Portable.*\.exe$/i.test(a.name));
-    if (!version || cmpVer(version, app.getVersion()) <= 0 || !asset) return set({ state: 'none' });
+    if (!version || cmpVer(version, pkg.version) <= 0 || !asset) return set({ state: 'none' });
     latest = { version, asset: { url: asset.browser_download_url, name: asset.name, size: asset.size }, notes: rel.body || '' };
     set({ state: 'available', version, notes: notesText(latest.notes) });
   }
@@ -104,8 +104,16 @@ function setupUpdater(getWin, beforeInstall = () => {}) {
     // let the new copy take the single-instance lock, then hand over
     app.releaseSingleInstanceLock();
     const args = portableExe ? ['--os-updated-from', portableExe] : [];
-    spawn(downloaded, args, { detached: true, stdio: 'ignore', cwd: path.dirname(downloaded) }).unref();
-    setTimeout(() => app.exit(0), 300);
+    try { if (process.platform !== 'win32') fs.chmodSync(downloaded, 0o755); } catch {}
+    let child;
+    try {
+      child = spawn(downloaded, args, { detached: true, stdio: 'ignore', cwd: path.dirname(downloaded) });
+    } catch (e) {
+      set({ state: 'error', error: 'Не удалось запустить новую версию: ' + e.message });
+      return;
+    }
+    child.on('error', (e) => set({ state: 'error', error: 'Не удалось запустить новую версию: ' + e.message }));
+    child.on('spawn', () => { child.unref(); setTimeout(() => app.exit(0), 300); });
   }
 
   // ---------------------------------------------------------------- IPC

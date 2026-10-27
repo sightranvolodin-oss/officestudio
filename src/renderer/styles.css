@@ -161,7 +161,7 @@ body.dragging #drop-hint { display: grid; }
 .doc-scroll { flex: 1; overflow: auto; background: #e9ebef; padding: 28px 0 60px; }
 .doc-zoom { transform-origin: top center; margin: 0 auto; width: 794px; }
 .doc-page {
-  width: 794px; min-height: 1123px; background: #fff; margin: 0 auto; padding: 96px 90px; box-shadow: 0 1px 3px rgba(0, 0, 0, .12), 0 4px 18px rgba(0, 0, 0, .06);
+  position: relative; z-index: 1; width: 794px; min-height: 1123px; background: transparent; margin: 0 auto; padding: 96px 90px; box-sizing: border-box;
   outline: none; user-select: text; cursor: text; font-family: Calibri, Carlito, 'Segoe UI', Arial, sans-serif; font-size: 11pt; line-height: 1.38; color: #000;
   word-wrap: break-word;
 }
@@ -180,7 +180,7 @@ body.dragging #drop-hint { display: grid; }
 .doc-page img.sel { outline: 2px solid var(--doc); outline-offset: 1px; }
 .doc-page a { color: #0563c1; }
 .doc-page hr { border: 0; border-top: 1px solid #9aa3b2; margin: 12pt 0; }
-.doc-page .page-break { height: 0; border-top: 2px dashed #b9c0cc; margin: 18pt -90px; position: relative; }
+.doc-page .page-break { height: 0; border-top: 1px dashed #b9c0cc; margin: 6pt 0; position: relative; }
 .doc-page .page-break::after { content: 'Разрыв страницы'; position: absolute; left: 50%; top: -9px; transform: translateX(-50%); background: #fff; padding: 0 8px; font: 11px var(--font); color: #8a94a6; }
 .doc-page ::selection { background: #b3d1ff; }
 .img-handle { position: absolute; width: 12px; height: 12px; background: #fff; border: 2px solid var(--doc); border-radius: 2px; cursor: nwse-resize; z-index: 10; }
@@ -384,3 +384,25 @@ body.dragging #drop-hint { display: grid; }
 .cad-ltabs .ltab { border: 0; background: none; color: #aab2c0; padding: 5px 14px; font: 12.5px 'Segoe UI', Arial, sans-serif; cursor: pointer; border-radius: 0 0 6px 6px; white-space: nowrap; }
 .cad-ltabs .ltab:hover { color: #fff; background: #353b46; }
 .cad-ltabs .ltab.on { background: #fafbfc; color: #1f2430; font-weight: 600; }
+
+/* ---------------------------------------------------------------- document pages */
+.doc-sheets { position: absolute; left: 0; top: 0; right: 0; z-index: 0; pointer-events: none; }
+.doc-sheet { position: absolute; left: 0; background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, .12), 0 4px 18px rgba(0, 0, 0, .06); }
+.doc-hf { position: absolute; font: 9pt Calibri, Carlito, 'Segoe UI', Arial, sans-serif; color: #5b6575; white-space: pre-wrap; pointer-events: auto; cursor: pointer; border-radius: 3px; }
+.doc-hf:hover { background: #eef3fd; outline: 1px dashed #9db8ec; }
+.doc-page .pg-push { margin-top: var(--pg) !important; }
+.doc-page tr.pg-push > td, .doc-page tr.pg-push > th { padding-top: calc(4px + var(--pg)) !important; }
+.doc-page .toc { border: 1px solid #dfe3ea; border-radius: 6px; padding: 8px 12px 10px; margin: 6pt 0 12pt; background: #fbfcfe; cursor: default; user-select: none; }
+.doc-page .toc-title { font-size: 14pt; font-weight: 600; color: #1f3864; margin-bottom: 6px; }
+.doc-page .toc-e { display: flex; align-items: baseline; gap: 4px; cursor: pointer; line-height: 1.6; }
+.doc-page .toc-e:hover .t { color: #0563c1; text-decoration: underline; }
+.doc-page .toc-e .d { flex: 1; border-bottom: 1px dotted #9aa3b2; transform: translateY(-3px); }
+.doc-page .toc-l2 { padding-left: 18px; }
+.doc-page .toc-l3 { padding-left: 36px; }
+.doc-page .toc-empty { color: #8a94a6; font-size: 10pt; }
+
+/* ---------------------------------------------------------------- terms of use */
+.terms-text { white-space: pre-wrap; max-height: 52vh; overflow: auto; font-size: 12.5px; line-height: 1.5; color: #2b3240; background: #f6f7f9; border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; margin-bottom: 12px; }
+.terms-agree { display: flex; gap: 8px; align-items: center; font-size: 13px; cursor: pointer; }
+.terms-agree input { width: 16px; height: 16px; }
+.modal:has(.terms-text), .modal:has(.upd-notes) { width: 640px; }
