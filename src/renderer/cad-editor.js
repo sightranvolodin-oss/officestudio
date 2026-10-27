@@ -998,6 +998,7 @@
     gripAt(sx, sy) { return this.grips().find((g) => { const s = this.w2s(g.p); return Math.abs(s.x - sx) <= 6 && Math.abs(s.y - sy) <= 6; }); }
 
     // ------------------------------------------------------------ commands
+    togglePencil() { this.startCmd(this.cmd && this.cmd.name === 'pencil' ? null : 'pencil'); }
     startCmd(name) {
       this.input.value = '';
       if (!this.eng) return;

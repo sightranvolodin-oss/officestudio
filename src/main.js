@@ -211,6 +211,18 @@ ipcMain.handle('craft-save', async (e, { target, name, bytes, saveAs, dir }) => 
     return { ok: false, error: err.message || String(err) };
   }
 });
+// a part of the window (a tab with its pencil marks) as a PNG
+ipcMain.handle('save-screenshot', async (e, { rect, suggestedName }) => {
+  try {
+    const img = await win.webContents.capturePage(rect);
+    const r = process.env.OS_TEST_SAVE_DIR ? { filePath: path.join(process.env.OS_TEST_SAVE_DIR, 'annot.png') } : await dialog.showSaveDialog(win, { title: 'Сохранить снимок с пометками', defaultPath: path.join(app.getPath('pictures'), (suggestedName || 'Пометки') + '.png'), filters: [{ name: 'PNG', extensions: ['png'] }] });
+    if (r.canceled || !r.filePath) return { ok: false, canceled: true };
+    fs.writeFileSync(r.filePath, img.toPNG());
+    return { ok: true, path: r.filePath };
+  } catch (err) {
+    return { ok: false, error: err.message || String(err) };
+  }
+});
 ipcMain.handle('set-menu-mode', (e, mode) => { if (mode !== menuMode) { menuMode = mode; menu(); } });
 
 // Document -> PDF with the page size, margins, headers/footers and page numbers of the document.
@@ -413,6 +425,8 @@ function menu() {
         { label: 'Выделить всё', role: 'selectAll' },
         { type: 'separator' },
         { label: 'Найти и заменить', accelerator: 'CmdOrCtrl+F', click: send('find'), cmd: 'find' },
+        { type: 'separator' },
+        { label: 'Пометки карандашом поверх', accelerator: 'CmdOrCtrl+/', click: send('annotate'), cmd: 'annotate' },
       ],
     },
     {

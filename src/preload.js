@@ -30,6 +30,7 @@ contextBridge.exposeInMainWorld('api', {
   settingsSet: (patch) => ipcRenderer.invoke('settings-set', patch),
   craftOpen: (p) => ipcRenderer.invoke('craft-open', p),
   craftSave: (args) => ipcRenderer.invoke('craft-save', args),
+  saveScreenshot: (args) => ipcRenderer.invoke('save-screenshot', args),
   setMenuMode: (m) => ipcRenderer.invoke('set-menu-mode', m),
   onMenu: (cb) => ipcRenderer.on('menu', (e, cmd) => cb(cmd)),
   onOpenPath: (cb) => ipcRenderer.on('open-path', (e, p) => cb(p)),

@@ -9,6 +9,7 @@
   };
 
   const tabsEl = document.getElementById('tabs');
+  let annot = null; // pencil marks over a tab (annot.js)
   const viewsEl = document.getElementById('views');
   const tabs = [];
   let active = null;
@@ -47,6 +48,7 @@
     if (t.home) refreshRecent();
     if (t.editor && t.editor.onActivate) t.editor.onActivate();
     window.api.setMenuMode(t.craft ? 'craft' : 'classic');
+    if (annot) annot.show(t.editor && t.editor.togglePencil ? null : t);
     window.api.setTitle(t.home ? 'OfficeStudio' : `${t.name}${t.dirty ? ' •' : ''} — OfficeStudio`);
   }
   async function closeTab(t) {
@@ -58,6 +60,7 @@
       if (r === 0 && !(await save(t, false))) return false;
     }
     t.editor && t.editor.destroy && t.editor.destroy();
+    if (annot && annot.tab === t) annot.show(null);
     const i = tabs.indexOf(t);
     tabs.splice(i, 1);
     t.tabEl.remove();
@@ -282,6 +285,10 @@
       case 'redo': if (ed && ed.redo) ed.redo(); else document.execCommand('redo'); return;
       case 'find': if (ed && ed.find) ed.find(); return;
       case 'editors': return editorsDialog();
+      case 'annotate':
+        if (ed && ed.togglePencil) return ed.togglePencil();
+        if (!annot.tab) annot.show(active);
+        return annot.toggle();
       case 'next-tab': return activate(tabs[(tabs.indexOf(active) + 1) % tabs.length]);
       case 'prev-tab': return activate(tabs[(tabs.indexOf(active) - 1 + tabs.length) % tabs.length]);
       case 'shortcuts': return showShortcuts();
@@ -407,6 +414,7 @@
   }, true);
 
   // ---------------------------------------------------------------- boot
+  annot = new window.Annotations(viewsEl);
   buildHome();
   addTab({ home: true, view: homeView });
   document.getElementById('tab-new').addEventListener('click', (e) => {

@@ -365,6 +365,7 @@
       ]);
     }
 
+    togglePencil() { this.setTool(this.tool === 'pencil' ? null : 'pencil'); }
     setTool(t) {
       this.commitEdit();
       this.tool = t;

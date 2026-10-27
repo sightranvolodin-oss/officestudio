@@ -1269,6 +1269,7 @@
       if (live) paths.push(`<path d="${Ink.pathD(live)}" stroke="${Ink.COLOR}" stroke-width="3"/>`);
       this.inkLayer.innerHTML = paths.join('');
     }
+    togglePencil() { this.setInkMode(this.inkMode === 'pencil' ? null : 'pencil'); }
     setInkMode(m) {
       this.inkMode = m;
       this.inkLayer.classList.toggle('active', m === 'pencil');
