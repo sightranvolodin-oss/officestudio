@@ -30,6 +30,7 @@ contextBridge.exposeInMainWorld('api', {
   settingsSet: (patch) => ipcRenderer.invoke('settings-set', patch),
   craftOpen: (p) => ipcRenderer.invoke('craft-open', p),
   craftSave: (args) => ipcRenderer.invoke('craft-save', args),
+  officeFonts: (have) => ipcRenderer.invoke('office-fonts', have),
   annotGet: (key) => ipcRenderer.invoke('annot-get', key),
   annotSet: (key, value) => ipcRenderer.invoke('annot-set', key, value),
   saveScreenshot: (args) => ipcRenderer.invoke('save-screenshot', args),

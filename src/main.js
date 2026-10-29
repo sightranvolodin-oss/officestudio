@@ -211,6 +211,42 @@ ipcMain.handle('craft-save', async (e, { target, name, bytes, saveAs, dir }) => 
     return { ok: false, error: err.message || String(err) };
   }
 });
+// Windows fonts for WordCraft: its browser build only knows the fonts it ships (no Cambria Math,
+// so equation symbols such as ⋅ come out as boxes) and the fonts kept in its own storage. The
+// common Office fonts of this computer are handed to it (they never leave the computer).
+const OFFICE_FONTS = [
+  'cambria.ttc', 'cambriab.ttf', 'cambriai.ttf', 'cambriaz.ttf',
+  'calibri.ttf', 'calibrib.ttf', 'calibrii.ttf', 'calibriz.ttf', 'calibril.ttf', 'calibrili.ttf',
+  'times.ttf', 'timesbd.ttf', 'timesi.ttf', 'timesbi.ttf',
+  'arial.ttf', 'arialbd.ttf', 'ariali.ttf', 'arialbi.ttf',
+  'seguisym.ttf', 'segoeui.ttf', 'segoeuib.ttf', 'segoeuii.ttf', 'symbol.ttf', 'consola.ttf',
+];
+function officeFontFiles() {
+  if (process.env.OS_FONTS_DIR) { // automated tests
+    const d = process.env.OS_FONTS_DIR;
+    return fs.readdirSync(d).filter((n) => /\.(ttf|otf|ttc|otc)$/i.test(n)).map((n) => path.join(d, n));
+  }
+  if (process.platform !== 'win32') return [];
+  const dirs = [path.join(process.env.WINDIR || 'C:\\Windows', 'Fonts'), process.env.LOCALAPPDATA && path.join(process.env.LOCALAPPDATA, 'Microsoft', 'Windows', 'Fonts')].filter(Boolean);
+  const out = [];
+  for (const n of OFFICE_FONTS) {
+    const f = dirs.map((d) => path.join(d, n)).find((x) => { try { return fs.statSync(x).size < 50 * 1024 * 1024; } catch { return false; } });
+    if (f) out.push(f);
+  }
+  return out;
+}
+/** fonts not yet given to WordCraft: [{ name, bytes }] (`have`: the names it already keeps) */
+ipcMain.handle('office-fonts', (e, have) => {
+  const known = new Set((have || []).map((n) => String(n).toLowerCase()));
+  const out = [];
+  for (const f of officeFontFiles()) {
+    const name = 'os-' + path.basename(f).toLowerCase();
+    if (known.has(name)) continue;
+    try { out.push({ name, bytes: new Uint8Array(fs.readFileSync(f)) }); } catch {}
+  }
+  return out;
+});
+
 // pencil marks drawn over a tab, remembered per file
 const annotFile = () => path.join(app.getPath('userData'), 'annotations.json');
 function readAnnots() { try { return JSON.parse(fs.readFileSync(annotFile(), 'utf8')); } catch { return {}; } }

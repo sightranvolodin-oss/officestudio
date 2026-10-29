@@ -20,6 +20,35 @@
   // a new drawing: an empty metric DXF (CADCraft's own «New» starts in inches)
   const EMPTY_DXF = ['0', 'SECTION', '2', 'HEADER', '9', '$ACADVER', '1', 'AC1015', '9', '$INSUNITS', '70', '4', '9', '$MEASUREMENT', '70', '1', '9', '$LUNITS', '70', '2', '9', '$DWGCODEPAGE', '3', 'ANSI_1251', '0', 'ENDSEC', '0', 'SECTION', '2', 'ENTITIES', '0', 'ENDSEC', '0', 'EOF', ''].join('\r\n');
 
+  /**
+   * Cambria Math, Calibri, Times New Roman… for WordCraft: kept in its IndexedDB font store
+   * («wordcraft» / «fonts», file name → bytes), which it loads at start like fonts the user added.
+   * Without them equations show boxes for symbols its own fonts lack (⋅, ∙, ∂…).
+   */
+  let wordFonts = null;
+  function ensureWordFonts() {
+    if (!wordFonts) {
+      wordFonts = (async () => {
+        const req = (r) => new Promise((res, rej) => { r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
+        const open = indexedDB.open('wordcraft', 1);
+        open.onupgradeneeded = () => { const db = open.result; if (!db.objectStoreNames.contains('fonts')) db.createObjectStore('fonts'); };
+        const db = await req(open);
+        try {
+          if (!db.objectStoreNames.contains('fonts')) return;
+          const have = await req(db.transaction('fonts').objectStore('fonts').getAllKeys());
+          const add = await window.api.officeFonts(have.map(String));
+          if (!add.length) return;
+          const st = db.transaction('fonts', 'readwrite');
+          for (const f of add) st.objectStore('fonts').put(new Uint8Array(f.bytes), f.name);
+          await new Promise((res, rej) => { st.oncomplete = res; st.onerror = () => rej(st.error); st.onabort = () => rej(st.error); });
+        } finally {
+          db.close();
+        }
+      })().catch((e) => console.warn('fonts for WordCraft:', e));
+    }
+    return wordFonts;
+  }
+
   class CraftEditor {
     /**
      * @param view   the tab's element
@@ -42,7 +71,10 @@
       this.file = bytes ? { name, bytes } : null;
       view.classList.add('craft-view');
       const q = this.cfg.app === 'deckcraft' ? 'host=parent&blank' : 'host=parent';
-      this.frame = el('iframe', { class: 'craft-frame', src: `crafts/${this.cfg.app}/index.html?${q}`, allow: 'clipboard-read; clipboard-write; fullscreen; local-fonts', title: this.tab.name });
+      this.frame = el('iframe', { class: 'craft-frame', allow: 'clipboard-read; clipboard-write; fullscreen; local-fonts', title: this.tab.name });
+      const src = `crafts/${this.cfg.app}/index.html?${q}`;
+      // WordCraft reads the fonts kept in its storage when it starts: put the Office fonts there first
+      (this.cfg.app === 'wordcraft' ? ensureWordFonts() : Promise.resolve()).finally(() => { if (!this.destroyed) this.frame.src = src; });
       this.loading = el('div', { class: 'craft-loading', html: '<div class="spin"></div><div>Загрузка редактора…</div>' });
       view.append(this.frame, this.loading);
       this.onMessage = (e) => this.message(e);
